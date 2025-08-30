@@ -7,6 +7,9 @@ on:
 jobs:
   release:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      packages: write
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -32,7 +35,15 @@ jobs:
         run: |
           # Extract version from the built wheel file
           WHEEL_FILE=$(ls dist/wiserate-*-py3-none-any.whl | head -1)
+          if [ -z "$WHEEL_FILE" ]; then
+            echo "Error: No wheel file found in dist/"
+            exit 1
+          fi
           VERSION=$(echo "$WHEEL_FILE" | sed 's/wiserate-\(.*\)-py3-none-any.whl/\1/')
+          if [ -z "$VERSION" ]; then
+            echo "Error: Could not extract version from wheel file: $WHEEL_FILE"
+            exit 1
+          fi
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "Found version: $VERSION"
 
@@ -54,16 +65,16 @@ jobs:
             CHANGELOG=$(python scripts/generate_changelog.py ${{ steps.package_version.outputs.version }} $PREVIOUS_TAG --stdout)
           fi
 
+          # Check if changelog generation was successful
+          if [ $? -ne 0 ] || [ -z "$CHANGELOG" ]; then
+            echo "Warning: Changelog generation failed or empty, using fallback"
+            CHANGELOG="## Release ${{ steps.package_version.outputs.version }}"
+          fi
+
           # Set output for next steps
           echo "changelog<<EOF" >> $GITHUB_OUTPUT
           echo "$CHANGELOG" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
-
-      - name: Upload build artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: WiseRate-package
-          path: dist/
 
       - name: Create Release and Upload Assets
         uses: softprops/action-gh-release@v2
@@ -71,7 +82,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           tag_name: ${{ github.ref_name }}
-          name: WiseRate ${{ github.ref_name }}
+          name: ${{ steps.package_version.outputs.version }}
           body: |
             ## What's Changed
 
@@ -80,7 +91,7 @@ jobs:
             ## Installation
 
             ```bash
-            pip install wiserate
+            pip install git+https://github.com/Amet13/WiseRate.git@v${{ steps.package_version.outputs.version }}
             ```
 
             ## Usage

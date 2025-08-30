@@ -52,7 +52,7 @@ WiseRate is a CLI tool for monitoring favorable currency exchange rates from Wis
 pip install git+https://github.com/Amet13/WiseRate.git
 
 # Or install specific version
-pip install git+https://github.com/Amet13/WiseRate.git@v2.0.0
+pip install git+https://github.com/Amet13/WiseRate.git@2.0.0
 ```
 
 #### Option 2: Development Installation
