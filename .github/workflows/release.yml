@@ -99,8 +99,6 @@ jobs:
           tag_name: ${{ github.ref_name }}
           name: ${{ steps.package_version.outputs.version }}
           body: |
-            ## What's Changed
-
             ${{ steps.changelog.outputs.changelog }}
 
             ## Installation
