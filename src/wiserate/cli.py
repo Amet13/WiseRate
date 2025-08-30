@@ -38,7 +38,7 @@ def setup_logging(level: str) -> None:
 
 
 @click.group()
-@click.version_option(version="2.0.0", prog_name="WiseRate")
+@click.version_option(version="2.1.0", prog_name="WiseRate")
 @click.option("--log-level", default="INFO", help="Log level")
 @click.option("--config-file", type=click.Path(exists=True), help="Configuration file path")
 @click.pass_context
