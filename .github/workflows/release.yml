@@ -27,6 +27,15 @@ jobs:
         run: |
           make build
 
+      - name: Get package version
+        id: package_version
+        run: |
+          # Extract version from the built wheel file
+          WHEEL_FILE=$(ls dist/wiserate-*-py3-none-any.whl | head -1)
+          VERSION=$(echo "$WHEEL_FILE" | sed 's/wiserate-\(.*\)-py3-none-any.whl/\1/')
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Found version: $VERSION"
+
       - name: Generate changelog
         id: changelog
         run: |
@@ -39,10 +48,10 @@ jobs:
           # Generate changelog directly without creating a file
           if [ -z "$PREVIOUS_TAG" ]; then
             # First release, get all commits
-            CHANGELOG=$(python scripts/generate_changelog.py $CURRENT_TAG --stdout)
+            CHANGELOG=$(python scripts/generate_changelog.py ${{ steps.package_version.outputs.version }} --stdout)
           else
             # Get commits since last release
-            CHANGELOG=$(python scripts/generate_changelog.py $CURRENT_TAG $PREVIOUS_TAG --stdout)
+            CHANGELOG=$(python scripts/generate_changelog.py ${{ steps.package_version.outputs.version }} $PREVIOUS_TAG --stdout)
           fi
 
           # Set output for next steps
@@ -56,14 +65,13 @@ jobs:
           name: WiseRate-package
           path: dist/
 
-      - name: Create Release
-        id: create_release
-        uses: actions/create-release@v1
+      - name: Create Release and Upload Assets
+        uses: softprops/action-gh-release@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           tag_name: ${{ github.ref_name }}
-          release_name: WiseRate ${{ github.ref_name }}
+          name: WiseRate ${{ github.ref_name }}
           body: |
             ## What's Changed
 
@@ -84,25 +92,8 @@ jobs:
             ## Documentation
 
             See [README.md](README.md) for full documentation.
+          files: |
+            dist/wiserate-*.whl
+            dist/wiserate-*.tar.gz
           draft: false
           prerelease: false
-
-      - name: Upload Release Assets
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./dist/wiserate-${{ github.ref_name }}-py3-none-any.whl
-          asset_name: wiserate-${{ github.ref_name }}-py3-none-any.whl
-          asset_content_type: application/octet-stream
-
-      - name: Upload Source Distribution
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./dist/wiserate-${{ github.ref_name }}.tar.gz
-          asset_name: wiserate-${{ github.ref_name }}.tar.gz
-          asset_content_type: application/gzip
