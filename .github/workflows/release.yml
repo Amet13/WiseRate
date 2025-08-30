@@ -104,7 +104,7 @@ jobs:
 
             See [README.md](README.md) for full documentation.
           files: |
-            dist/wiserate-*.whl
-            dist/wiserate-*.tar.gz
+            dist/wiserate-${{ steps.package_version.outputs.version }}-*.whl
+            dist/wiserate-${{ steps.package_version.outputs.version }}.tar.gz
           draft: false
           prerelease: false
