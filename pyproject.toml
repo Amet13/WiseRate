@@ -1,0 +1,76 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "WiseRate"
+version = "2.0.0"
+description = "Modern CLI tool for monitoring favorable currency exchange rates from Wise"
+readme = "README.md"
+license = {text = "MIT"}
+authors = [
+    {name = "Amet13"}
+]
+keywords = ["currency", "exchange", "rates", "wise", "WiseRate", "cli", "monitoring"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: End Users/Desktop",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Office/Business :: Financial",
+]
+requires-python = ">=3.13"
+dependencies = [
+    "httpx>=0.28.0",
+    "pydantic>=2.11.0",
+    "pydantic-settings>=2.10.0",
+    "structlog>=25.4.0",
+    "click>=8.1.0",
+    "rich>=14.1.0",
+    "aiofiles>=24.1.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.4.0",
+    "pytest-asyncio>=1.1.0",
+    "black>=25.1.0",
+    "isort>=6.0.0",
+    "flake8>=7.3.0",
+    "mypy>=1.17.0",
+    "pre-commit>=4.3.0",
+]
+
+[project.scripts]
+wiserate = "wiserate.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/Amet13/WiseRate"
+Repository = "https://github.com/Amet13/WiseRate"
+Issues = "https://github.com/Amet13/WiseRate/issues"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/wiserate"]
+
+[tool.black]
+line-length = 100
+target-version = ['py313']
+
+[tool.isort]
+profile = "black"
+multi_line_output = 3
+
+[tool.mypy]
+python_version = "2.0.0"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = "-v"
+asyncio_mode = "auto"

@@ -1,0 +1,105 @@
+name: Release Pipeline
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Fetch all history for changelog generation
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.13"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+          pip install conventional-changelog-writer
+
+      - name: Build package
+        run: |
+          make build
+
+      - name: Generate changelog
+        id: changelog
+        run: |
+          # Get the previous release tag
+          PREVIOUS_TAG=$(git describe --tags --abbrev=0 HEAD~1 2>/dev/null || echo "")
+
+          # Generate changelog directly without creating a file
+          if [ -z "$PREVIOUS_TAG" ]; then
+            # First release, get all commits
+            CHANGELOG=$(python scripts/generate_changelog.py ${{ github.event.release.tag_name }} --stdout)
+          else
+            # Get commits since last release
+            CHANGELOG=$(python scripts/generate_changelog.py ${{ github.event.release.tag_name }} $PREVIOUS_TAG --stdout)
+          fi
+
+          # Set output for next steps
+          echo "changelog<<EOF" >> $GITHUB_OUTPUT
+          echo "$CHANGELOG" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: WiseRate-package
+          path: dist/
+
+      - name: Create Release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.event.release.tag_name }}
+          release_name: ${{ github.event.release.name }}
+          body: |
+            ## What's Changed
+
+            ${{ steps.changelog.outputs.changelog }}
+
+            ## Installation
+
+            ```bash
+            pip install wiserate
+            ```
+
+            ## Usage
+
+            ```bash
+            wiserate --help
+            ```
+
+            ## Documentation
+
+            See [README.md](README.md) for full documentation.
+          draft: false
+          prerelease: false
+
+      - name: Upload Release Assets
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./dist/wiserate-${{ github.event.release.tag_name }}-py3-none-any.whl
+          asset_name: wiserate-${{ github.event.release.tag_name }}-py3-none-any.whl
+          asset_content_type: application/octet-stream
+
+      - name: Upload Source Distribution
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./dist/wiserate-${{ github.event.release.tag_name }}.tar.gz
+          asset_name: wiserate-${{ github.event.release.tag_name }}.tar.gz
+          asset_content_type: application/gzip
