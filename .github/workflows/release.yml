@@ -41,10 +41,13 @@ jobs:
           fi
           echo "Debug: Found wheel file: $WHEEL_FILE"
 
-          # Extract just the version number (e.g., 2.1.0 from wiserate-2.1.0-py3-none-any.whl)
-          VERSION=$(echo "$WHEEL_FILE" | sed 's/^wiserate-\([0-9]\+\.[0-9]\+\.[0-9]\+\)-.*\.whl$/\1/')
+          # Extract just the version number using basename and sed
+          FILENAME=$(basename "$WHEEL_FILE")
+          echo "Debug: Filename: $FILENAME"
+
+          VERSION=$(echo "$FILENAME" | sed 's/wiserate-\([0-9]\+\.[0-9]\+\.[0-9]\+\)-.*\.whl/\1/')
           if [ -z "$VERSION" ]; then
-            echo "Error: Could not extract version from wheel file: $WHEEL_FILE"
+            echo "Error: Could not extract version from wheel file: $FILENAME"
             exit 1
           fi
 
