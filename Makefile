@@ -93,5 +93,5 @@ release: ## Prepare release (VERSION=x.y.z)
 	@echo "Next steps:"
 	@echo "  git add ."
 	@echo "  git commit -m 'chore: prepare release $(VERSION)'"
-	@echo "  git tag v$(VERSION)"
+	@echo "  git tag $(VERSION)"
 	@echo "  git push origin main --tags"
