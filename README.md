@@ -3,17 +3,14 @@
   <h1>WiseRate</h1>
   <p><strong>CLI tool for monitoring favorable currency exchange rates from Wise</strong></p>
   <p>
-    <a href="https://github.com/Amet13/wiserate/actions/workflows/ci.yml">
-      <img src="https://github.com/Amet13/wiserate/actions/workflows/ci.yml/badge.svg" alt="CI Status">
+    <a href="https://github.com/Amet13/WiseRate/actions/workflows/ci.yml">
+      <img src="https://github.com/Amet13/WiseRate/actions/workflows/ci.yml/badge.svg" alt="CI Status">
     </a>
-    <a href="https://github.com/Amet13/wiserate/blob/main/LICENSE">
+    <a href="https://github.com/Amet13/WiseRate/blob/main/LICENSE">
       <img src="https://img.shields.io/badge/License-MIT-green" alt="MIT License">
     </a>
-    <a href="https://www.python.org/downloads/">
-      <img src="https://img.shields.io/badge/python-3.13-blue.svg" alt="Python 3.13">
-    </a>
-    <a href="https://github.com/psf/black">
-      <img src="https://img.shields.io/badge/code%20style-black-000000.svg" alt="Code style: black">
+    <a href="https://github.com/Amet13/WiseRate/releases">
+      <img src="https://img.shields.io/github/v/release/Amet13/WiseRate?label=version" alt="Latest Release">
     </a>
   </p>
 </div>
