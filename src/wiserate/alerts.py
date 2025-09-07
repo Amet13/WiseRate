@@ -103,18 +103,48 @@ class AlertService:
                             target=alert_data["currency_pair"]["target"],
                         )
 
+                        # Handle created_at with null checking
+                        created_at_value = alert_data.get("created_at")
+                        if created_at_value is None:
+                            logger.warning(
+                                "Alert missing created_at timestamp, skipping",
+                                alert_data=alert_data,
+                            )
+                            continue
+
+                        try:
+                            created_at_dt = datetime.fromisoformat(created_at_value)
+                        except (ValueError, TypeError) as e:
+                            logger.warning(
+                                "Invalid created_at format, skipping",
+                                value=created_at_value,
+                                error=str(e),
+                            )
+                            continue
+
                         alert = Alert(
                             currency_pair=currency_pair,
                             threshold=Decimal(alert_data["threshold"]),
                             is_above=alert_data["is_above"],
                             enabled=alert_data.get("enabled", True),
-                            created_at=datetime.fromisoformat(alert_data["created_at"]),
+                            created_at=created_at_dt,
                         )
 
-                        if "last_triggered" in alert_data:
-                            alert.last_triggered = datetime.fromisoformat(
-                                alert_data["last_triggered"]
-                            )
+                        # Handle last_triggered with null checking
+                        if (
+                            "last_triggered" in alert_data
+                            and alert_data["last_triggered"] is not None
+                        ):
+                            try:
+                                alert.last_triggered = datetime.fromisoformat(
+                                    alert_data["last_triggered"]
+                                )
+                            except (ValueError, TypeError) as e:
+                                logger.warning(
+                                    "Invalid last_triggered format, ignoring",
+                                    value=alert_data["last_triggered"],
+                                    error=str(e),
+                                )
 
                         alert_key = self._get_alert_key(currency_pair)
                         self._alerts[alert_key] = alert
