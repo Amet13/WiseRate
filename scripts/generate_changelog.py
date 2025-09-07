@@ -23,24 +23,24 @@ def get_commits_since_tag(tag: str) -> List[str]:
         cmd = ["git", "log", "--pretty=format:%H %s", f"{tag}..HEAD"]
     else:
         cmd = ["git", "log", "--pretty=format:%H %s"]
-    
+
     output = run_command(cmd)
-    return [line.strip() for line in output.split('\n') if line.strip()]
+    return [line.strip() for line in output.split("\n") if line.strip()]
 
 
 def parse_conventional_commit(commit_line: str) -> Tuple[str, str, str]:
     """Parse a conventional commit message."""
     # Extract hash and message
-    parts = commit_line.split(' ', 1)
+    parts = commit_line.split(" ", 1)
     if len(parts) != 2:
         return "other", "other", commit_line
-    
+
     commit_hash, message = parts
-    
+
     # Conventional commit pattern: type(scope): description
-    pattern = r'^(\w+)(?:\(([\w\-]+)\))?:\s*(.+)$'
+    pattern = r"^(\w+)(?:\(([\w\-]+)\))?:\s*(.+)$"
     match = re.match(pattern, message)
-    
+
     if match:
         commit_type = match.group(1).lower()
         scope = match.group(2) or "general"
@@ -52,7 +52,7 @@ def parse_conventional_commit(commit_line: str) -> Tuple[str, str, str]:
 
 def categorize_commits(commits: List[str]) -> Dict[str, List[str]]:
     """Categorize commits by type."""
-    categories = {
+    categories: Dict[str, List[str]] = {
         "feat": [],
         "fix": [],
         "docs": [],
@@ -61,43 +61,43 @@ def categorize_commits(commits: List[str]) -> Dict[str, List[str]]:
         "perf": [],
         "test": [],
         "chore": [],
-        "other": []
+        "other": [],
     }
-    
+
     for commit in commits:
         commit_type, scope, description = parse_conventional_commit(commit)
         if commit_type in categories:
             categories[commit_type].append(description)
         else:
             categories["other"].append(description)
-    
+
     return categories
 
 
 def format_changelog(categories: Dict[str, List[str]], version: str) -> str:
     """Format the changelog."""
     changelog = f"# Changelog for WiseRate {version}\n\n"
-    
+
     # Define category headers
     headers = {
         "feat": "🚀 New Features",
-        "fix": "🐛 Bug Fixes", 
+        "fix": "🐛 Bug Fixes",
         "docs": "📚 Documentation",
         "style": "💄 Code Style",
         "refactor": "♻️ Refactoring",
         "perf": "⚡ Performance",
         "test": "🧪 Tests",
         "chore": "🔧 Maintenance",
-        "other": "📝 Other Changes"
+        "other": "📝 Other Changes",
     }
-    
+
     for category, commits in categories.items():
         if commits:
             changelog += f"## {headers[category]}\n\n"
             for commit in commits:
                 changelog += f"- {commit}\n"
             changelog += "\n"
-    
+
     return changelog
 
 
@@ -106,28 +106,28 @@ def main():
     if len(sys.argv) < 2:
         print("Usage: python generate_changelog.py <version> [previous_tag] [--stdout]")
         sys.exit(1)
-    
+
     version = sys.argv[1]
-    previous_tag = sys.argv[2] if len(sys.argv) > 2 and not sys.argv[2].startswith('--') else None
-    output_stdout = '--stdout' in sys.argv
-    
+    previous_tag = sys.argv[2] if len(sys.argv) > 2 and not sys.argv[2].startswith("--") else None
+    output_stdout = "--stdout" in sys.argv
+
     if not output_stdout:
         print(f"Generating changelog for version {version}...")
-    
+
     # Get commits since last tag
     commits = get_commits_since_tag(previous_tag)
-    
+
     if not commits:
         if not output_stdout:
             print("No commits found.")
         sys.exit(1)
-    
+
     # Categorize commits
     categories = categorize_commits(commits)
-    
+
     # Generate changelog
     changelog = format_changelog(categories, version)
-    
+
     if output_stdout:
         # Output to stdout for GitHub Actions
         print(changelog)
@@ -135,10 +135,10 @@ def main():
         # Write to file for local use
         with open("CHANGELOG.md", "w", encoding="utf-8") as f:
             f.write(changelog)
-        
-        print(f"Changelog generated: CHANGELOG.md")
+
+        print("Changelog generated: CHANGELOG.md")
         print(f"Found {len(commits)} commits")
-        
+
         # Print summary
         for category, commit_list in categories.items():
             if commit_list:

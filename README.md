@@ -1,7 +1,7 @@
 <div align="center">
   <img src="logo.png" alt="WiseRate Logo" width="200" style="border-radius: 20px;">
   <h1>WiseRate</h1>
-  <p><strong>CLI tool for monitoring favorable currency exchange rates from Wise</strong></p>
+  <p><strong>CLI tool for monitoring favorable currency exchange rates</strong></p>
   <p>
     <a href="https://github.com/Amet13/WiseRate/actions/workflows/ci.yml">
       <img src="https://github.com/Amet13/WiseRate/actions/workflows/ci.yml/badge.svg" alt="CI Status">
@@ -15,12 +15,12 @@
   </p>
 </div>
 
-WiseRate is a CLI tool for monitoring favorable currency exchange rates from Wise, with support for alerts, caching, multiple API providers, and an interactive mode.
+WiseRate is a CLI tool for monitoring currency exchange rates, with support for alerts, caching, and an interactive mode.
 
 ## ✨ Features
 
 - **Modern Architecture**: Built with Python 3.13, async/await, and Pydantic v2 models
-- **Multiple API Support**: Wise API (primary for favorable rates) + fallback free APIs
+- **API Integration**: Free exchange rate API with built-in caching and rate limiting
 - **Smart Caching**: Configurable cache TTL with fallback to stale data
 - **Alert System**: Set price alerts with above/below thresholds
 - **Rich CLI**: Beautiful command-line interface with Click and Rich
@@ -29,8 +29,8 @@ WiseRate is a CLI tool for monitoring favorable currency exchange rates from Wis
 - **Currency Validation**: Built-in ISO 4217 currency code validation
 - **Structured Logging**: JSON logging with configurable levels
 - **Rate Limiting**: Built-in API rate limiting and protection
-- **Configuration Management**: Environment variables + .env file support
-- **Comprehensive Testing**: Full test suite with pytest (67 tests)
+- **Configuration Management**: Built-in defaults with optional overrides
+- **Comprehensive Testing**: Full test suite with pytest (64 tests)
 - **Modern CI/CD**: GitHub Actions with automated testing and linting
 
 ## 🚀 Quick Start
@@ -38,11 +38,8 @@ WiseRate is a CLI tool for monitoring favorable currency exchange rates from Wis
 ### Prerequisites
 
 - Python 3.13
-- Wise API Key (optional, for better rates)
 
 ### Installation
-
-#### Option 1: Install from GitHub Release (Recommended)
 
 ```bash
 # Install latest version from main branch
@@ -52,40 +49,9 @@ pip install git+https://github.com/Amet13/WiseRate.git
 pip install git+https://github.com/Amet13/WiseRate.git@2.0.0
 ```
 
-#### Option 2: Development Installation
-
-```bash
-# Clone the repository
-git clone https://github.com/Amet13/WiseRate.git
-cd WiseRate
-
-# Install in development mode
-pip install -e ".[dev]"
-
-# To uninstall later:
-# pip uninstall WiseRate
-```
-
-### Configuration
-
-Create a `.env` file in your project directory:
-
-```bash
-# Optional - Wise API (for favorable rates)
-WISE_API_KEY=your_wise_api_key_here
-
-# Optional - Custom settings
-WISERATE_DATA_DIR=~/.wiserate
-WISERATE_CACHE_TTL=3600
-WISERATE_LOG_LEVEL=INFO
-```
-
 ### Basic Usage
 
 ```bash
-# Test your configuration
-wiserate test
-
 # Get current exchange rate
 wiserate rate EUR USD
 
@@ -131,7 +97,7 @@ wiserate interactive
 
 ```
 src/wiserate/
-├── __init__.py          # Package initialization
+├── __init__.py         # Package initialization
 ├── app.py              # Main application orchestrator
 ├── cli.py              # Command-line interface
 ├── config.py           # Configuration management
@@ -148,7 +114,7 @@ src/wiserate/
 - **WiseRateApp**: Main application class that orchestrates all services
 - **ExchangeRateService**: Handles API calls, caching, and rate management
 - **AlertService**: Handles alert creation, monitoring, and notifications
-- **Settings**: Configuration management with environment variable support
+- **Settings**: Configuration management with built-in defaults
 - **Custom Exceptions**: Proper error handling with specific exception types
 - **Utility Functions**: Currency validation, formatting, and file operations
 
@@ -208,23 +174,6 @@ make format        # Format code (Black + isort)
 make lint          # Run all linting tools
 make type-check    # Run type checking with mypy
 ```
-
-## 📊 API Providers
-
-### Primary: Wise API
-
-- **URL**: `https://api.wise.com/v1`
-- **Authentication**: Bearer token
-- **Rate Limits**: Varies by plan
-- **Coverage**: 170+ currencies
-- **Purpose**: Get favorable exchange rates for monitoring and alerts
-
-### Fallback: Free APIs
-
-- **Exchangerate-API**: `https://api.exchangerate-api.com/v4`
-- **No authentication required**
-- **Rate Limits**: Generous free tier
-- **Coverage**: 170+ currencies
 
 ## 🔒 Security Features
 

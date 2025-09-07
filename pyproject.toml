@@ -5,13 +5,13 @@ build-backend = "hatchling.build"
 [project]
 name = "WiseRate"
 version = "2.1.0"
-description = "Modern CLI tool for monitoring favorable currency exchange rates from Wise"
+description = "Modern CLI tool for monitoring favorable currency exchange rates"
 readme = "README.md"
 license = {text = "MIT"}
 authors = [
     {name = "Amet13"}
 ]
-keywords = ["currency", "exchange", "rates", "wise", "WiseRate", "cli", "monitoring"]
+keywords = ["currency", "exchange", "rates", "WiseRate", "cli", "monitoring"]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: End Users/Desktop",
@@ -24,7 +24,6 @@ requires-python = ">=3.13"
 dependencies = [
     "httpx>=0.28.0",
     "pydantic>=2.11.0",
-    "pydantic-settings>=2.10.0",
     "structlog>=25.4.0",
     "click>=8.1.0",
     "rich>=14.1.0",
@@ -62,7 +61,7 @@ profile = "black"
 multi_line_output = 3
 
 [tool.mypy]
-python_version = "2.1.0"
+python_version = "3.13"
 warn_return_any = true
 warn_unused_configs = true
 disallow_untyped_defs = true

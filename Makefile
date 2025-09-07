@@ -1,7 +1,7 @@
 .PHONY: help install install-dev test test-verbose test-file test-coverage lint format type-check clean build check ci release changelog version
 
 help: ## Show this help message
-	@echo "WiseRate - Modern CLI Tool for Monitoring Favorable Exchange Rates from Wise"
+	@echo "WiseRate - Modern CLI Tool for Monitoring Favorable Exchange Rates"
 	@echo "================================================"
 	@echo ""
 	@echo "Available commands:"

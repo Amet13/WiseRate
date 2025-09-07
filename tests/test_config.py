@@ -24,9 +24,7 @@ class TestSettings:
         """Test default configuration values."""
         settings = Settings()
 
-        assert settings.wise_api_key is None
-        assert settings.wise_api_url == "https://api.wise.com/v1"
-        assert settings.fallback_api_url == "https://api.exchangerate-api.com/v4"
+        assert settings.api_url == "https://api.exchangerate-api.com/v4"
         assert settings.cache_ttl == DEFAULT_CACHE_TTL
         assert settings.log_level == DEFAULT_LOG_LEVEL
         assert settings.max_requests_per_minute == DEFAULT_MAX_REQUESTS_PER_MINUTE
@@ -51,19 +49,19 @@ class TestSettings:
         assert settings.log_level == custom_log_level
         assert settings.max_requests_per_minute == custom_max_requests
 
-    def test_environment_variables(self, monkeypatch):
-        """Test environment variable configuration."""
-        monkeypatch.setenv("WISE_API_KEY", "test_key_123")
-        monkeypatch.setenv("WISERATE_CACHE_TTL", "1800")
-        monkeypatch.setenv("WISERATE_LOG_LEVEL", "WARNING")
-        monkeypatch.setenv("WISERATE_MAX_REQUESTS_PER_MINUTE", "45")
+    def test_constructor_overrides(self):
+        """Test custom configuration via constructor."""
+        custom_settings = Settings(
+            api_url="https://custom.api.com/v2",
+            cache_ttl=1800,
+            log_level="WARNING",
+            max_requests_per_minute=45,
+        )
 
-        settings = Settings()
-
-        assert settings.wise_api_key == "test_key_123"
-        assert settings.cache_ttl == 1800
-        assert settings.log_level == "WARNING"
-        assert settings.max_requests_per_minute == 45
+        assert custom_settings.api_url == "https://custom.api.com/v2"
+        assert custom_settings.cache_ttl == 1800
+        assert custom_settings.log_level == "WARNING"
+        assert custom_settings.max_requests_per_minute == 45
 
     def test_data_directory_creation(self, tmp_path):
         """Test that data directory is created automatically."""
@@ -180,56 +178,32 @@ class TestSettingsValidation:
         assert settings.log_level == "ERROR"
 
 
-class TestSettingsEnvironment:
-    """Test environment variable handling."""
+class TestSettingsOverrides:
+    """Test configuration override handling."""
 
-    def test_wise_api_key_environment(self, monkeypatch):
-        """Test WISE_API_KEY environment variable."""
-        # Test with key
-        monkeypatch.setenv("WISE_API_KEY", "env_key_123")
-        settings = Settings()
-        assert settings.wise_api_key == "env_key_123"
+    def test_api_url_override(self):
+        """Test API_URL configuration override."""
+        custom_url = "https://custom.api/v2"
+        settings = Settings(api_url=custom_url)
+        assert settings.api_url == custom_url
 
-        # Test without key
-        monkeypatch.delenv("WISE_API_KEY", raising=False)
-        settings = Settings()
-        assert settings.wise_api_key is None
-
-    def test_wise_api_url_environment(self, monkeypatch):
-        """Test WISE_API_URL environment variable."""
-        custom_url = "https://custom.wise.api/v2"
-        monkeypatch.setenv("WISE_API_URL", custom_url)
-        settings = Settings()
-        assert settings.wise_api_url == custom_url
-
-    def test_fallback_api_url_environment(self, monkeypatch):
-        """Test FALLBACK_API_URL environment variable."""
-        custom_url = "https://custom.fallback.api/v3"
-        monkeypatch.setenv("FALLBACK_API_URL", custom_url)
-        settings = Settings()
-        assert settings.fallback_api_url == custom_url
-
-    def test_data_dir_environment(self, monkeypatch, tmp_path):
-        """Test WISERATE_DATA_DIR environment variable."""
-        custom_dir = str(tmp_path / "custom_data")
-        monkeypatch.setenv("WISERATE_DATA_DIR", custom_dir)
-        settings = Settings()
-        assert settings.data_dir == Path(custom_dir)
-
-    def test_cache_ttl_environment(self, monkeypatch):
-        """Test WISERATE_CACHE_TTL environment variable."""
-        monkeypatch.setenv("WISERATE_CACHE_TTL", "7200")
-        settings = Settings()
+    def test_cache_ttl_override(self):
+        """Test cache TTL configuration override."""
+        settings = Settings(cache_ttl=7200)
         assert settings.cache_ttl == 7200
 
-    def test_log_level_environment(self, monkeypatch):
-        """Test WISERATE_LOG_LEVEL environment variable."""
-        monkeypatch.setenv("WISERATE_LOG_LEVEL", "DEBUG")
-        settings = Settings()
+    def test_data_dir_override(self, tmp_path):
+        """Test data directory configuration override."""
+        custom_dir = tmp_path / "custom_data"
+        settings = Settings(data_dir=custom_dir)
+        assert settings.data_dir == custom_dir
+
+    def test_log_level_override(self):
+        """Test log level configuration override."""
+        settings = Settings(log_level="DEBUG")
         assert settings.log_level == "DEBUG"
 
-    def test_max_requests_environment(self, monkeypatch):
-        """Test WISERATE_MAX_REQUESTS_PER_MINUTE environment variable."""
-        monkeypatch.setenv("WISERATE_MAX_REQUESTS_PER_MINUTE", "90")
-        settings = Settings()
+    def test_max_requests_override(self):
+        """Test max requests configuration override."""
+        settings = Settings(max_requests_per_minute=90)
         assert settings.max_requests_per_minute == 90

@@ -1,10 +1,22 @@
-"""Configuration management for the currency exchange bot."""
+"""Configuration management for WiseRate.
+
+This module provides centralized configuration management using Pydantic.
+It handles configuration with sensible defaults built into the application.
+
+Key Features:
+- Validation of configuration values
+- Automatic data directory creation
+- Type-safe configuration access
+- Built-in sensible defaults
+
+Configuration can be provided via:
+1. Constructor parameters
+2. Default values (built into the app)
+"""
 
 from pathlib import Path
-from typing import Optional
 
-from pydantic import Field, field_validator, model_validator
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 from .constants import (
     DEFAULT_CACHE_TTL,
@@ -18,49 +30,70 @@ from .constants import (
 )
 
 
-class Settings(BaseSettings):
-    """Application settings."""
+class Settings(BaseModel):
+    """Application settings for WiseRate.
 
-    # Wise API settings
-    wise_api_key: Optional[str] = Field(None, alias="WISE_API_KEY", description="Wise API key")
-    wise_api_url: str = Field("https://api.wise.com/v1", alias="WISE_API_URL")
+    This class manages all configuration for the WiseRate application using
+    Pydantic's BaseModel. Configuration values can be provided through:
 
-    # Alternative free API (when Wise API is not available)
-    fallback_api_url: str = Field("https://api.exchangerate-api.com/v4", alias="FALLBACK_API_URL")
+    1. Constructor parameters
+    2. Default values (built into the app)
+
+    Attributes:
+        api_url: Base URL for free exchange rate API
+        data_dir: Directory for storing cache and configuration files
+        cache_ttl: How long to cache exchange rates (seconds)
+        log_level: Logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
+        max_requests_per_minute: Rate limiting for API requests
+
+    Example:
+        >>> settings = Settings()
+        >>> settings.data_dir
+        PosixPath('/Users/username/.wiserate')
+
+        >>> settings = Settings(cache_ttl=300, log_level='DEBUG')
+        >>> settings.cache_ttl
+        300
+    """
+
+    # API settings
+    api_url: str = Field(default="https://api.exchangerate-api.com/v4")
 
     # Application settings
-    data_dir: Path = Field(default=Path.home() / ".wiserate", alias="WISERATE_DATA_DIR")
-    cache_ttl: int = Field(
-        default=DEFAULT_CACHE_TTL,
-        alias="WISERATE_CACHE_TTL",
-        description="Cache TTL in seconds",
-    )
-    log_level: str = Field(default=DEFAULT_LOG_LEVEL, alias="WISERATE_LOG_LEVEL")
+    data_dir: Path = Field(default=Path.home() / ".wiserate")
+    cache_ttl: int = Field(default=DEFAULT_CACHE_TTL)
+    log_level: str = Field(default=DEFAULT_LOG_LEVEL)
 
     # Rate limiting
-    max_requests_per_minute: int = Field(
-        default=DEFAULT_MAX_REQUESTS_PER_MINUTE,
-        alias="WISERATE_MAX_REQUESTS_PER_MINUTE",
-    )
-
-    model_config = SettingsConfigDict(
-        env_file=".env",
-        env_file_encoding="utf-8",
-        case_sensitive=False,
-        extra="ignore",
-        validate_default=True,
-    )
+    max_requests_per_minute: int = Field(default=DEFAULT_MAX_REQUESTS_PER_MINUTE)
 
     @model_validator(mode="after")
     def validate_settings(self) -> "Settings":
-        """Validate all settings after model creation."""
+        """Validate all settings after model creation.
+
+        This method is called after all field validation and can perform
+        cross-field validation if needed.
+
+        Returns:
+            The validated Settings instance
+        """
         # Additional validation if needed
         return self
 
     @field_validator("log_level", mode="before")
     @classmethod
     def validate_log_level(cls, v: str) -> str:
-        """Validate and normalize log level."""
+        """Validate and normalize log level.
+
+        Args:
+            v: The log level value to validate
+
+        Returns:
+            The validated and normalized log level
+
+        Raises:
+            ValueError: If the log level is not supported
+        """
         if isinstance(v, str):
             v = v.upper()
         if v not in SUPPORTED_LOG_LEVELS:
@@ -70,8 +103,18 @@ class Settings(BaseSettings):
     @field_validator("cache_ttl", mode="before")
     @classmethod
     def validate_cache_ttl(cls, v) -> int:
-        """Validate cache TTL value."""
-        # Convert string to int if needed (for environment variables)
+        """Validate cache TTL value.
+
+        Args:
+            v: The cache TTL value to validate (can be string or int)
+
+        Returns:
+            The validated cache TTL value
+
+        Raises:
+            ValueError: If the cache TTL is invalid or out of range
+        """
+        # Convert string to int if needed
         if isinstance(v, str):
             try:
                 v = int(v)
@@ -87,8 +130,18 @@ class Settings(BaseSettings):
     @field_validator("max_requests_per_minute", mode="before")
     @classmethod
     def validate_max_requests(cls, v) -> int:
-        """Validate max requests per minute value."""
-        # Convert string to int if needed (for environment variables)
+        """Validate max requests per minute value.
+
+        Args:
+            v: The max requests per minute value to validate (can be string or int)
+
+        Returns:
+            The validated max requests per minute value
+
+        Raises:
+            ValueError: If the value is invalid or out of range
+        """
+        # Convert string to int if needed
         if isinstance(v, str):
             try:
                 v = int(v)
@@ -103,38 +156,53 @@ class Settings(BaseSettings):
         return v
 
     def __init__(self, **kwargs):
-        """Initialize settings with custom values."""
-        # Handle both constructor parameters and environment variables
-        # First, create a dict with environment variable mappings
-        env_kwargs = {}
+        """Initialize settings with custom values.
 
-        # Map constructor parameters to their environment variable names
-        if "cache_ttl" in kwargs:
-            env_kwargs["WISERATE_CACHE_TTL"] = str(kwargs["cache_ttl"])
-        if "log_level" in kwargs:
-            env_kwargs["WISERATE_LOG_LEVEL"] = kwargs["log_level"]
-        if "max_requests_per_minute" in kwargs:
-            env_kwargs["WISERATE_MAX_REQUESTS_PER_MINUTE"] = str(kwargs["max_requests_per_minute"])
-        if "data_dir" in kwargs:
-            env_kwargs["WISERATE_DATA_DIR"] = str(kwargs["data_dir"])
+        This constructor allows overriding default settings via keyword arguments.
 
-        # Call parent constructor with environment variables
-        super().__init__(**env_kwargs)
+        Args:
+            **kwargs: Settings to override. Supported keys:
+                - api_url: API URL for exchange rates
+                - cache_ttl: Cache TTL in seconds
+                - log_level: Logging level
+                - max_requests_per_minute: Rate limiting value
+                - data_dir: Data directory path
+        """
+        # Call parent constructor with provided values
+        super().__init__(**kwargs)
 
         # Ensure data directory exists
         self.data_dir.mkdir(parents=True, exist_ok=True)
 
     @property
     def currencies_file(self) -> Path:
-        """Get the path to the currencies cache file."""
+        """Get the path to the currencies cache file.
+
+        This file stores cached exchange rate data to reduce API calls.
+
+        Returns:
+            Path to the currencies.json cache file
+        """
         return self.data_dir / "currencies.json"
 
     @property
     def alerts_file(self) -> Path:
-        """Get the path to the alerts configuration file."""
+        """Get the path to the alerts configuration file.
+
+        This file stores user-defined price alerts and their configurations.
+
+        Returns:
+            Path to the alerts.json configuration file
+        """
         return self.data_dir / "alerts.json"
 
     @property
     def log_file(self) -> Path:
-        """Get the path to the log file."""
+        """Get the path to the application log file.
+
+        All application logs are written to this file for debugging and monitoring.
+
+        Returns:
+            Path to the wiserate.log file
+        """
         return self.data_dir / "wiserate.log"

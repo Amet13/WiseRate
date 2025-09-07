@@ -17,6 +17,35 @@ from .utils import load_json_file, retry_with_backoff, save_json_file
 logger = structlog.get_logger(__name__)
 
 
+class RateLimiter:
+    """Token bucket rate limiter for API requests."""
+
+    def __init__(self, requests_per_minute: int):
+        self.requests_per_minute = requests_per_minute
+        self.tokens = requests_per_minute
+        self.last_refill = datetime.now(UTC)
+        self._lock = asyncio.Lock()
+
+    async def acquire(self) -> None:
+        """Acquire a token, waiting if necessary."""
+        async with self._lock:
+            now = datetime.now(UTC)
+
+            # Refill tokens based on time passed
+            time_passed = (now - self.last_refill).total_seconds()
+            tokens_to_add = int(time_passed * self.requests_per_minute / 60)
+            self.tokens = min(self.requests_per_minute, self.tokens + tokens_to_add)
+            self.last_refill = now
+
+            if self.tokens <= 0:
+                # Calculate wait time for next token
+                wait_time = 60 / self.requests_per_minute
+                await asyncio.sleep(wait_time)
+                self.tokens += 1
+
+            self.tokens -= 1
+
+
 class ExchangeRateService:
     """Service for managing exchange rates."""
 
@@ -24,7 +53,7 @@ class ExchangeRateService:
         self.settings = settings
         self._cache: Dict[str, ExchangeRate] = {}
         self._last_update: Optional[datetime] = None
-        self._rate_limiter = asyncio.Semaphore(settings.max_requests_per_minute)
+        self._rate_limiter = RateLimiter(settings.max_requests_per_minute)
 
     async def get_exchange_rate(self, currency_pair: CurrencyPair) -> ExchangeRate:
         """Get the current exchange rate for a currency pair."""
@@ -68,64 +97,20 @@ class ExchangeRateService:
 
     async def _fetch_exchange_rate(self, currency_pair: CurrencyPair) -> ExchangeRate:
         """Fetch exchange rate from API."""
-        async with self._rate_limiter:
-            # Try Wise API first if available
-            if self.settings.wise_api_key:
-                try:
-                    return await self._fetch_from_wise(currency_pair)
-                except Exception as e:
-                    logger.warning("Wise API failed, falling back to free API", error=str(e))
+        # Acquire rate limit token
+        await self._rate_limiter.acquire()
 
-            # Fallback to free API
-            return await self._fetch_from_fallback(currency_pair)
+        # Fetch from API
+        return await self._fetch_from_api(currency_pair)
 
-    async def _fetch_from_wise(self, currency_pair: CurrencyPair) -> ExchangeRate:
-        """Fetch exchange rate from Wise API."""
-        if not self.settings.wise_api_key:
-            raise APIError("Wise API key not configured")
+    async def _fetch_from_api(self, currency_pair: CurrencyPair) -> ExchangeRate:
+        """Fetch exchange rate from API."""
+        logger.info(
+            "Fetching exchange rate", source=currency_pair.source, target=currency_pair.target
+        )
 
         async def _make_request():
-            headers = {"Authorization": f"Bearer {self.settings.wise_api_key}"}
-            params = {
-                "source": currency_pair.source,
-                "target": currency_pair.target,
-            }
-
-            async with httpx.AsyncClient() as client:
-                response = await client.get(
-                    f"{self.settings.wise_api_url}/rates",
-                    headers=headers,
-                    params=params,
-                    timeout=30.0,
-                )
-                response.raise_for_status()
-                return response.json()
-
-        try:
-            data = await retry_with_backoff(_make_request)
-            rate_value = Decimal(str(data.get("rate", 0)))
-
-            if rate_value <= 0:
-                raise APIError(f"Invalid rate received from Wise API: {rate_value}")
-
-            return ExchangeRate(
-                source=currency_pair.source,
-                target=currency_pair.target,
-                rate=rate_value,
-                timestamp=datetime.now(UTC),
-            )
-        except httpx.HTTPStatusError as e:
-            raise APIError(f"Wise API error: {e.response.status_code} - {e.response.text}")
-        except httpx.RequestError as e:
-            raise APIError(f"Wise API request failed: {e}")
-        except Exception as e:
-            raise APIError(f"Unexpected error fetching from Wise API: {e}")
-
-    async def _fetch_from_fallback(self, currency_pair: CurrencyPair) -> ExchangeRate:
-        """Fetch exchange rate from fallback free API."""
-
-        async def _make_request():
-            url = f"{self.settings.fallback_api_url}/latest/{currency_pair.source}"
+            url = f"{self.settings.api_url}/latest/{currency_pair.source}"
 
             async with httpx.AsyncClient() as client:
                 response = await client.get(url, timeout=30.0)
@@ -138,11 +123,18 @@ class ExchangeRateService:
             target_rate = rates.get(currency_pair.target)
 
             if target_rate is None:
+                logger.error(
+                    "Rate not found in API response",
+                    source=currency_pair.source,
+                    target=currency_pair.target,
+                    available_rates=list(rates.keys()),
+                )
                 raise APIError(f"Rate not found for {currency_pair.target}")
 
             rate_value = Decimal(str(target_rate))
             if rate_value <= 0:
-                raise APIError(f"Invalid rate received from fallback API: {rate_value}")
+                logger.error("Invalid rate from API", rate=target_rate)
+                raise APIError(f"Invalid rate received from API: {rate_value}")
 
             return ExchangeRate(
                 source=currency_pair.source,
@@ -151,11 +143,16 @@ class ExchangeRateService:
                 timestamp=datetime.now(UTC),
             )
         except httpx.HTTPStatusError as e:
-            raise APIError(f"Fallback API error: {e.response.status_code} - {e.response.text}")
+            logger.error(
+                "API HTTP error", status_code=e.response.status_code, response=e.response.text
+            )
+            raise APIError(f"API error: {e.response.status_code} - {e.response.text}")
         except httpx.RequestError as e:
-            raise APIError(f"Fallback API request failed: {e}")
+            logger.error("API request error", error=str(e))
+            raise APIError(f"API request failed: {e}")
         except Exception as e:
-            raise APIError(f"Unexpected error fetching from fallback API: {e}")
+            logger.error("Unexpected API error", error=str(e))
+            raise APIError(f"Unexpected error fetching from API: {e}")
 
     async def _fetch_all_rates(self) -> List[ExchangeRate]:
         """Fetch all available exchange rates."""

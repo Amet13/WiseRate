@@ -1,4 +1,4 @@
-"""Modern currency exchange rate monitoring CLI tool powered by Wise."""
+"""Modern currency exchange rate monitoring CLI tool."""
 
 __version__ = "2.1.0"
 __author__ = "Amet13"

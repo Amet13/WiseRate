@@ -4,6 +4,8 @@ import asyncio
 import sys
 from datetime import datetime
 from decimal import Decimal
+from functools import wraps
+from typing import Any, Callable, Coroutine
 
 import click
 import structlog
@@ -14,6 +16,29 @@ from .app import WiseRateApp
 from .config import Settings
 
 console = Console()
+
+
+def async_command(func: Callable[..., Coroutine[Any, Any, None]]) -> Callable[..., None]:
+    """Decorator to handle async command execution with common error handling."""
+
+    @wraps(func)
+    def wrapper(ctx, *args: Any, **kwargs: Any) -> None:
+        async def run() -> None:
+            settings = ctx.obj["settings"]
+            app = WiseRateApp(settings)
+            await app.start()
+
+            try:
+                await func(app, ctx, *args, **kwargs)
+            except Exception as e:
+                console.print(f"[red]Error: {e}[/red]")
+                sys.exit(1)
+            finally:
+                await app.stop()
+
+        asyncio.run(run())
+
+    return wrapper
 
 
 def setup_logging(level: str) -> None:
@@ -40,18 +65,14 @@ def setup_logging(level: str) -> None:
 @click.group()
 @click.version_option(version="2.1.0", prog_name="WiseRate")
 @click.option("--log-level", default="INFO", help="Log level")
-@click.option("--config-file", type=click.Path(exists=True), help="Configuration file path")
 @click.pass_context
-def cli(ctx, log_level: str, config_file: str):
-    """WiseRate - Modern CLI tool for monitoring favorable currency exchange rates from Wise."""
+def cli(ctx, log_level: str):
+    """WiseRate - Modern CLI tool for monitoring currency exchange rates."""
     setup_logging(log_level)
     ctx.ensure_object(dict)
 
     try:
-        if config_file:
-            settings = Settings(_env_file=config_file)
-        else:
-            settings = Settings()
+        settings = Settings()
         ctx.obj["settings"] = settings
     except Exception as e:
         console.print(f"[red]Configuration error: {e}[/red]")
@@ -63,25 +84,11 @@ def cli(ctx, log_level: str, config_file: str):
 @click.argument("target", type=str)
 @click.option("--update", "-u", is_flag=True, help="Update currency rates cache")
 @click.pass_context
-def rate(ctx, source: str, target: str, update: bool):
+@async_command
+async def rate(app, ctx, source: str, target: str, update: bool):
     """Get exchange rate for a currency pair."""
-    settings = ctx.obj["settings"]
-
-    async def run():
-        app = WiseRateApp(settings)
-        await app.start()
-
-        try:
-            rate = await app.get_exchange_rate(source.upper(), target.upper(), update)
-            console.print(f"[green]1 {rate.source} = {rate.rate} {rate.target}[/green]")
-
-        except Exception as e:
-            console.print(f"[red]Error: {e}[/red]")
-            sys.exit(1)
-        finally:
-            await app.stop()
-
-    asyncio.run(run())
+    rate = await app.get_exchange_rate(source.upper(), target.upper(), update)
+    console.print(f"[green]1 {rate.source} = {rate.rate} {rate.target}[/green]")
 
 
 @cli.command()
@@ -90,142 +97,69 @@ def rate(ctx, source: str, target: str, update: bool):
 @click.argument("threshold", type=float)
 @click.option("--below", is_flag=True, help="Alert when rate goes below threshold")
 @click.pass_context
-def alert(ctx, source: str, target: str, threshold: float, below: bool):
+@async_command
+async def alert(app, ctx, source: str, target: str, threshold: float, below: bool):
     """Set an exchange rate alert."""
-    settings = ctx.obj["settings"]
+    is_above = not below
+    success = await app.set_alert(source.upper(), target.upper(), Decimal(str(threshold)), is_above)
 
-    async def run():
-        app = WiseRateApp(settings)
-        await app.start()
-
-        try:
-            is_above = not below
-            success = await app.set_alert(
-                source.upper(), target.upper(), Decimal(str(threshold)), is_above
-            )
-
-            if success:
-                direction = "below" if below else "above"
-                console.print(
-                    f"[green]Alert set: 1 {source.upper()} {direction} "
-                    f"{threshold} {target.upper()}[/green]"
-                )
-            else:
-                console.print("[red]Failed to set alert[/red]")
-                sys.exit(1)
-
-        except Exception as e:
-            console.print(f"[red]Error: {e}[/red]")
-            sys.exit(1)
-        finally:
-            await app.stop()
-
-    asyncio.run(run())
+    if success:
+        direction = "below" if below else "above"
+        console.print(
+            f"[green]Alert set: 1 {source.upper()} {direction} "
+            f"{threshold} {target.upper()}[/green]"
+        )
+    else:
+        console.print("[red]Failed to set alert[/red]")
+        sys.exit(1)
 
 
 @cli.command()
 @click.argument("source", type=str)
 @click.argument("target", type=str)
 @click.pass_context
-def remove_alert(ctx, source: str, target: str):
+@async_command
+async def remove_alert(app, ctx, source: str, target: str):
     """Remove an exchange rate alert."""
-    settings = ctx.obj["settings"]
+    success = await app.remove_alert(source.upper(), target.upper())
 
-    async def run():
-        app = WiseRateApp(settings)
-        await app.start()
-
-        try:
-            success = await app.remove_alert(source.upper(), target.upper())
-
-            if success:
-                console.print(f"[green]Alert removed for {source.upper()}/{target.upper()}[/green]")
-            else:
-                console.print(
-                    f"[yellow]No alert found for {source.upper()}/{target.upper()}[/yellow]"
-                )
-
-        except Exception as e:
-            console.print(f"[red]Error: {e}[/red]")
-            sys.exit(1)
-        finally:
-            await app.stop()
-
-    asyncio.run(run())
+    if success:
+        console.print(f"[green]Alert removed for {source.upper()}/{target.upper()}[/green]")
+    else:
+        console.print(f"[yellow]No alert found for {source.upper()}/{target.upper()}[/yellow]")
 
 
 @cli.command()
 @click.pass_context
-def alerts(ctx):
+@async_command
+async def alerts(app, ctx):
     """List all active alerts."""
-    settings = ctx.obj["settings"]
-
-    async def run():
-        app = WiseRateApp(settings)
-        await app.start()
-
-        try:
-            alerts_text = await app.list_alerts()
-            console.print(alerts_text)
-
-        except Exception as e:
-            console.print(f"[red]Error: {e}[/red]")
-            sys.exit(1)
-        finally:
-            await app.stop()
-
-    asyncio.run(run())
+    alerts_text = await app.list_alerts()
+    console.print(alerts_text)
 
 
 @cli.command()
 @click.pass_context
-def update(ctx):
+@async_command
+async def update(app, ctx):
     """Update all currency rates."""
-    settings = ctx.obj["settings"]
-
-    async def run():
-        app = WiseRateApp(settings)
-        await app.start()
-
-        try:
-            await app.update_all_rates()
-            console.print("[green]All currency rates updated[/green]")
-
-        except Exception as e:
-            console.print(f"[red]Error: {e}[/red]")
-            sys.exit(1)
-        finally:
-            await app.stop()
-
-    asyncio.run(run())
+    await app.update_all_rates()
+    console.print("[green]All currency rates updated[/green]")
 
 
 @cli.command()
 @click.option("--interval", default=600, help="Monitoring interval in seconds")
 @click.pass_context
-def monitor(ctx, interval: int):
+@async_command
+async def monitor(app, ctx, interval: int):
     """Run the monitoring loop to check alerts."""
-    settings = ctx.obj["settings"]
+    console.print(f"[green]Starting monitoring loop (interval: {interval}s)[/green]")
+    console.print("[yellow]Press Ctrl+C to stop[/yellow]")
 
-    async def run():
-        app = WiseRateApp(settings)
-        await app.start()
-
-        try:
-            console.print(f"[green]Starting monitoring loop (interval: {interval}s)[/green]")
-            console.print("[yellow]Press Ctrl+C to stop[/yellow]")
-
-            await app.run_monitoring_loop(interval)
-
-        except KeyboardInterrupt:
-            console.print("\n[yellow]Monitoring stopped by user[/yellow]")
-        except Exception as e:
-            console.print(f"[red]Error: {e}[/red]")
-            sys.exit(1)
-        finally:
-            await app.stop()
-
-    asyncio.run(run())
+    try:
+        await app.run_monitoring_loop(interval)
+    except KeyboardInterrupt:
+        console.print("\n[yellow]Monitoring stopped by user[/yellow]")
 
 
 @cli.command()
@@ -261,9 +195,7 @@ def config(ctx):
     table.add_column("Setting", style="cyan")
     table.add_column("Value", style="green")
 
-    table.add_row("Wise API Key", "Set" if settings.wise_api_key else "Not set")
-    table.add_row("Wise API URL", settings.wise_api_url)
-    table.add_row("Fallback API URL", settings.fallback_api_url)
+    table.add_row("API URL", settings.api_url)
     table.add_row("Data Directory", str(settings.data_dir))
     table.add_row("Cache TTL", f"{settings.cache_ttl}s")
     table.add_row("Log Level", settings.log_level)
@@ -284,51 +216,35 @@ def config(ctx):
 )
 @click.option("--update", "-u", is_flag=True, help="Update currency rates cache")
 @click.pass_context
-def history(ctx, source: str, target: str, format: str, update: bool):
+@async_command
+async def history(app, ctx, source: str, target: str, format: str, update: bool):
     """Get historical exchange rate data."""
-    settings = ctx.obj["settings"]
+    # For now, just get current rate (historical data would need API support)
+    rate = await app.get_exchange_rate(source.upper(), target.upper(), update)
 
-    async def run():
-        app = WiseRateApp(settings)
-        await app.start()
+    if format == "json":
+        import json
 
-        try:
-            # For now, just get current rate (historical data would need API support)
-            rate = await app.get_exchange_rate(source.upper(), target.upper(), update)
-
-            if format == "json":
-                import json
-
-                data = {
-                    "source": rate.source,
-                    "target": rate.target,
-                    "rate": str(rate.rate),
-                    "timestamp": rate.timestamp.isoformat(),
-                    "source_name": rate.source_name,
-                    "target_name": rate.target_name,
-                }
-                console.print(json.dumps(data, indent=2))
-            elif format == "csv":
-                console.print(
-                    f"{rate.source},{rate.target},{rate.rate},{rate.timestamp.isoformat()}"
-                )
-            else:  # table
-                table = Table(title=f"Exchange Rate: {rate.source} → {rate.target}")
-                table.add_column("Field", style="cyan")
-                table.add_column("Value", style="green")
-                table.add_row("Rate", str(rate.rate))
-                table.add_row("Timestamp", rate.timestamp.strftime("%Y-%m-%d %H:%M:%S UTC"))
-                table.add_row("Source", f"{rate.source} ({rate.source_name or 'Unknown'})")
-                table.add_row("Target", f"{rate.target} ({rate.target_name or 'Unknown'})")
-                console.print(table)
-
-        except Exception as e:
-            console.print(f"[red]Error: {e}[/red]")
-            sys.exit(1)
-        finally:
-            await app.stop()
-
-    asyncio.run(run())
+        data = {
+            "source": rate.source,
+            "target": rate.target,
+            "rate": str(rate.rate),
+            "timestamp": rate.timestamp.isoformat(),
+            "source_name": rate.source_name,
+            "target_name": rate.target_name,
+        }
+        console.print(json.dumps(data, indent=2))
+    elif format == "csv":
+        console.print(f"{rate.source},{rate.target},{rate.rate},{rate.timestamp.isoformat()}")
+    else:  # table
+        table = Table(title=f"Exchange Rate: {rate.source} → {rate.target}")
+        table.add_column("Field", style="cyan")
+        table.add_column("Value", style="green")
+        table.add_row("Rate", str(rate.rate))
+        table.add_row("Timestamp", rate.timestamp.strftime("%Y-%m-%d %H:%M:%S UTC"))
+        table.add_row("Source", f"{rate.source} ({rate.source_name or 'Unknown'})")
+        table.add_row("Target", f"{rate.target} ({rate.target_name or 'Unknown'})")
+        console.print(table)
 
 
 @cli.command()
@@ -340,49 +256,49 @@ def history(ctx, source: str, target: str, format: str, update: bool):
     help="Output format",
 )
 @click.pass_context
-def export(ctx, format: str):
+@async_command
+async def export(app, ctx, format: str):
     """Export all data (rates and alerts) in various formats."""
-    settings = ctx.obj["settings"]
+    # Get all alerts
+    alerts_text = await app.list_alerts()
 
-    async def run():
-        app = WiseRateApp(settings)
-        await app.start()
+    if format == "json":
+        import json
 
-        try:
-            # Get all alerts
-            alerts_text = await app.list_alerts()
+        data = {
+            "alerts": alerts_text,
+            "exported_at": datetime.now().isoformat(),
+        }
+        console.print(json.dumps(data, indent=2))
+    elif format == "csv":
+        console.print("type,source,target,threshold,is_above,enabled,created_at")
+        # Parse alerts text to CSV (improved parsing)
+        if "No active alerts" not in alerts_text:
+            lines = alerts_text.split("\n")
+            # Skip header lines (usually first 2-3 lines)
+            for line in lines:
+                if line.startswith("•"):
+                    # Parse alert line format: "• EUR/USD: above 1.05 (enabled)"
+                    parts = line.replace("• ", "").split(":")
+                    if len(parts) == 2:
+                        pair_info = parts[0].strip()  # "EUR/USD"
+                        status_info = parts[1].strip()  # "above 1.05 (enabled)"
 
-            if format == "json":
-                import json
+                        if "/" in pair_info:
+                            source, target = pair_info.split("/")
+                            # Parse status: "above 1.05 (enabled)"
+                            status_parts = status_info.split()
+                            if len(status_parts) >= 3:
+                                direction = status_parts[0]  # "above" or "below"
+                                threshold = status_parts[1]  # "1.05"
+                                enabled = "enabled" in status_info
+                                is_above = direction == "above"
 
-                data = {
-                    "alerts": alerts_text,
-                    "exported_at": datetime.now().isoformat(),
-                }
-                console.print(json.dumps(data, indent=2))
-            elif format == "csv":
-                console.print("type,source,target,threshold,is_above,enabled,created_at")
-                # Parse alerts text to CSV (simplified)
-                if "No active alerts" not in alerts_text:
-                    lines = alerts_text.split("\n")[2:]  # Skip header
-                    for line in lines:
-                        if line.startswith("•"):
-                            parts = line.replace("• ", "").split(":")
-                            if len(parts) == 2:
-                                pair_info = parts[0]
-                                status_info = parts[1]
-                                # Extract information (simplified parsing)
-                                console.print(f"alert,{pair_info.replace('/', ',')},{status_info}")
-            else:  # table
-                console.print(alerts_text)
-
-        except Exception as e:
-            console.print(f"[red]Error: {e}[/red]")
-            sys.exit(1)
-        finally:
-            await app.stop()
-
-    asyncio.run(run())
+                                console.print(
+                                    f"alert,{source},{target},{threshold},{is_above},{enabled},"
+                                )
+    else:  # table
+        console.print(alerts_text)
 
 
 @cli.command()
@@ -449,114 +365,8 @@ def interactive(ctx):
                         console.print("[yellow]Goodbye![/yellow]")
                         break
 
-                    if command.lower() == "help":
-                        console.print(
-                            """
-[bold]Available Commands:[/bold]
-• [cyan]rate <source> <target>[/cyan] - Get exchange rate
-• [cyan]alert <source> <target> <threshold>[/cyan] - Set alert
-• [cyan]alerts[/cyan] - List all alerts
-• [cyan]currencies[/cyan] - List supported currencies
-• [cyan]validate <currency>[/cyan] - Validate currency code
-• [cyan]config[/cyan] - Show configuration
-• [cyan]help[/cyan] - Show this help
-• [cyan]quit[/cyan] - Exit interactive mode
-                        """
-                        )
-                        continue
-
-                    if command.lower().startswith("rate "):
-                        parts = command.split()
-                        if len(parts) >= 3:
-                            source, target = parts[1], parts[2]
-                            try:
-                                rate = await app.get_exchange_rate(source.upper(), target.upper())
-                                console.print(
-                                    f"[green]1 {rate.source} = {rate.rate} {rate.target}[/green]"
-                                )
-                            except Exception as e:
-                                console.print(f"[red]Error: {e}[/red]")
-                        else:
-                            console.print("[red]Usage: rate <source> <target>[/red]")
-                        continue
-
-                    if command.lower().startswith("alert "):
-                        parts = command.split()
-                        if len(parts) >= 4:
-                            source, target, threshold = parts[1], parts[2], parts[3]
-                            try:
-                                success = await app.set_alert(
-                                    source.upper(), target.upper(), Decimal(threshold)
-                                )
-                                if success:
-                                    console.print(
-                                        f"[green]Alert set for {source.upper()}/"
-                                        f"{target.upper()} at {threshold}[/green]"
-                                    )
-                                else:
-                                    console.print("[red]Failed to set alert[/red]")
-                            except Exception as e:
-                                console.print(f"[red]Error: {e}[/red]")
-                        else:
-                            console.print("[red]Usage: alert <source> <target> <threshold>[/red]")
-                        continue
-
-                    if command.lower() == "alerts":
-                        try:
-                            alerts_text = await app.list_alerts()
-                            console.print(alerts_text)
-                        except Exception as e:
-                            console.print(f"[red]Error: {e}[/red]")
-                        continue
-
-                    if command.lower() == "currencies":
-                        from .utils import EXTENDED_CURRENCIES, get_currency_name
-
-                        table = Table(title="Supported Currencies")
-                        table.add_column("Code", style="cyan")
-                        table.add_column("Name", style="green")
-                        # Show first 20 currencies
-                        for currency in sorted(list(EXTENDED_CURRENCIES)[:20]):
-                            name = get_currency_name(currency) or "Unknown"
-                            table.add_row(currency, name)
-                        console.print(table)
-                        continue
-
-                    if command.lower().startswith("validate "):
-                        parts = command.split()
-                        if len(parts) >= 2:
-                            currency = parts[1]
-                            from .utils import get_currency_name, validate_currency_code
-
-                            currency_upper = currency.upper()
-                            is_valid = validate_currency_code(currency_upper)
-                            currency_name = get_currency_name(currency_upper)
-
-                            if is_valid:
-                                console.print(f"[green]✓ {currency_upper} is valid[/green]")
-                                if currency_name:
-                                    console.print(f"[blue]{currency_name}[/blue]")
-                            else:
-                                console.print(f"[red]✗ {currency_upper} is invalid[/red]")
-                        else:
-                            console.print("[red]Usage: validate <currency>[/red]")
-                        continue
-
-                    if command.lower() == "config":
-                        table = Table(title="Configuration")
-                        table.add_column("Setting", style="cyan")
-                        table.add_column("Value", style="green")
-                        table.add_row(
-                            "Wise API Key",
-                            "Set" if settings.wise_api_key else "Not set",
-                        )
-                        table.add_row("Data Directory", str(settings.data_dir))
-                        table.add_row("Cache TTL", f"{settings.cache_ttl}s")
-                        console.print(table)
-                        continue
-
-                    console.print(f"[yellow]Unknown command: {command}[/yellow]")
-                    console.print("[yellow]Type 'help' for available commands[/yellow]")
+                    # Parse and execute command
+                    await execute_interactive_command(app, settings, command)
 
                 except KeyboardInterrupt:
                     console.print("\n[yellow]Use 'quit' to exit[/yellow]")
@@ -570,6 +380,178 @@ def interactive(ctx):
             await app.stop()
 
     asyncio.run(run())
+
+
+async def execute_interactive_command(app: WiseRateApp, settings, command: str):
+    """Execute a command in interactive mode with improved parsing and validation."""
+    parts = command.split()
+    cmd = parts[0].lower() if parts else ""
+
+    try:
+        if cmd == "help":
+            show_interactive_help()
+            return
+
+        elif cmd == "rate":
+            if len(parts) < 3:
+                console.print("[red]Usage: rate <source> <target> [--update][/red]")
+                return
+
+            source, target = parts[1].upper(), parts[2].upper()
+            update = "--update" in parts or "-u" in parts
+
+            rate = await app.get_exchange_rate(source, target, update)
+            console.print(f"[green]1 {rate.source} = {rate.rate} {rate.target}[/green]")
+            if rate.source_name and rate.target_name:
+                console.print(f"[blue]{rate.source_name} → {rate.target_name}[/blue]")
+
+        elif cmd == "alert":
+            if len(parts) < 4:
+                console.print("[red]Usage: alert <source> <target> <threshold> [--below][/red]")
+                return
+
+            source, target, threshold_str = parts[1].upper(), parts[2].upper(), parts[3]
+            is_below = "--below" in parts
+
+            try:
+                threshold = Decimal(threshold_str)
+            except ValueError:
+                console.print(f"[red]Invalid threshold value: {threshold_str}[/red]")
+                return
+
+            is_above = not is_below
+            success = await app.set_alert(source, target, threshold, is_above)
+
+            if success:
+                direction = "below" if is_below else "above"
+                console.print(
+                    f"[green]Alert set: 1 {source} {direction} {threshold} {target}[/green]"
+                )
+            else:
+                console.print("[red]Failed to set alert[/red]")
+
+        elif cmd == "remove-alert":
+            if len(parts) < 3:
+                console.print("[red]Usage: remove-alert <source> <target>[/red]")
+                return
+
+            source, target = parts[1].upper(), parts[2].upper()
+            success = await app.remove_alert(source, target)
+
+            if success:
+                console.print(f"[green]Alert removed for {source}/{target}[/green]")
+            else:
+                console.print(f"[yellow]No alert found for {source}/{target}[/yellow]")
+
+        elif cmd == "alerts":
+            alerts_text = await app.list_alerts()
+            console.print(alerts_text)
+
+        elif cmd == "currencies":
+            from .utils import EXTENDED_CURRENCIES, get_currency_name
+
+            # Allow pagination: currencies [page]
+            page = 1
+            if len(parts) > 1:
+                try:
+                    page = int(parts[1])
+                except ValueError:
+                    console.print("[red]Invalid page number[/red]")
+                    return
+
+            currencies_per_page = 20
+            start_idx = (page - 1) * currencies_per_page
+            end_idx = start_idx + currencies_per_page
+
+            sorted_currencies = sorted(EXTENDED_CURRENCIES)
+            total_pages = (len(sorted_currencies) + currencies_per_page - 1) // currencies_per_page
+
+            if page < 1 or page > total_pages:
+                console.print(f"[red]Page {page} not found. Total pages: {total_pages}[/red]")
+                return
+
+            table = Table(title=f"Supported Currencies (Page {page}/{total_pages})")
+            table.add_column("Code", style="cyan")
+            table.add_column("Name", style="green")
+
+            for currency in sorted_currencies[start_idx:end_idx]:
+                name = get_currency_name(currency) or "Unknown"
+                table.add_row(currency, name)
+
+            console.print(table)
+
+        elif cmd == "validate":
+            if len(parts) < 2:
+                console.print("[red]Usage: validate <currency>[/red]")
+                return
+
+            currency = parts[1].upper()
+            from .utils import get_currency_name, validate_currency_code
+
+            is_valid = validate_currency_code(currency)
+            currency_name = get_currency_name(currency)
+
+            if is_valid:
+                console.print(f"[green]✓ {currency} is a valid currency code[/green]")
+                if currency_name:
+                    console.print(f"[blue]Currency: {currency_name}[/blue]")
+            else:
+                console.print(f"[red]✗ {currency} is not a valid currency code[/red]")
+                console.print("[yellow]Tip: Use 3-letter ISO 4217 currency codes[/yellow]")
+
+        elif cmd == "config":
+            table = Table(title="Configuration")
+            table.add_column("Setting", style="cyan")
+            table.add_column("Value", style="green")
+
+            table.add_row("API URL", settings.api_url)
+            table.add_row("Data Directory", str(settings.data_dir))
+            table.add_row("Cache TTL", f"{settings.cache_ttl}s")
+            table.add_row("Log Level", settings.log_level)
+            table.add_row("Max Requests/Min", str(settings.max_requests_per_minute))
+
+            console.print(table)
+
+        elif cmd == "update":
+            console.print("[yellow]Updating all currency rates...[/yellow]")
+            await app.update_all_rates()
+            console.print("[green]All currency rates updated[/green]")
+
+        elif cmd == "clear":
+            console.print("[yellow]Clear command not implemented yet[/yellow]")
+
+        else:
+            console.print(f"[yellow]Unknown command: {cmd}[/yellow]")
+            console.print("[yellow]Type 'help' for available commands[/yellow]")
+
+    except Exception as e:
+        console.print(f"[red]Error executing command '{cmd}': {e}[/red]")
+
+
+def show_interactive_help():
+    """Show comprehensive help for interactive mode."""
+    help_table = Table(title="WiseRate Interactive Mode - Available Commands")
+    help_table.add_column("Command", style="cyan", no_wrap=True)
+    help_table.add_column("Description", style="green")
+    help_table.add_column("Example", style="yellow")
+
+    help_table.add_row("rate <src> <tgt> [--update]", "Get exchange rate", "rate EUR USD")
+    help_table.add_row(
+        "alert <src> <tgt> <thresh> [--below]", "Set price alert", "alert EUR USD 1.05"
+    )
+    help_table.add_row("remove-alert <src> <tgt>", "Remove alert", "remove-alert EUR USD")
+    help_table.add_row("alerts", "List all alerts", "alerts")
+    help_table.add_row("currencies [page]", "List currencies", "currencies 2")
+    help_table.add_row("validate <currency>", "Validate currency code", "validate EUR")
+    help_table.add_row("update", "Update all rates", "update")
+    help_table.add_row("config", "Show configuration", "config")
+    help_table.add_row("help", "Show this help", "help")
+    help_table.add_row("quit", "Exit interactive mode", "quit")
+
+    console.print(help_table)
+    console.print("\n[yellow]Options:[/yellow]")
+    console.print("  --update, -u    Update cache before getting rate")
+    console.print("  --below         Alert when rate goes below threshold")
 
 
 def main():
