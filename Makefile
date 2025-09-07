@@ -76,7 +76,7 @@ version: ## Show current version across all files
 release: ## Prepare release (VERSION=x.y.z)
 	@echo "Preparing release $(VERSION)..."
 	@echo "1. Updating version in pyproject.toml..."
-	@sed -i '' 's/version = ".*"/version = "$(VERSION)"/' pyproject.toml
+	@sed -i '' 's/^version = ".*"/version = "$(VERSION)"/' pyproject.toml
 	@echo "2. Updating version in src/wiserate/__init__.py..."
 	@sed -i '' 's/__version__ = ".*"/__version__ = "$(VERSION)"/' src/wiserate/__init__.py
 	@echo "3. Updating version in src/wiserate/cli.py..."
