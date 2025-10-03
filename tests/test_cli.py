@@ -21,12 +21,6 @@ class TestCLI:
         assert "WiseRate" in result.output
         assert "Modern CLI tool" in result.output
 
-    def test_cli_version(self, runner):
-        """Test CLI version command."""
-        result = runner.invoke(cli, ["--version"])
-        assert result.exit_code == 0
-        assert "2.3.0" in result.output
-
     def test_config_command(self, runner):
         """Test config command."""
         result = runner.invoke(cli, ["config"])

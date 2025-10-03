@@ -1,4 +1,4 @@
-.PHONY: help install install-dev test test-verbose test-file test-coverage lint format type-check clean build check ci release changelog version
+.PHONY: help install install-dev test test-verbose test-file test-coverage lint format type-check clean build check ci release version
 
 help: ## Show this help message
 	@echo "WiseRate - Modern CLI Tool for Monitoring Favorable Exchange Rates"
@@ -108,9 +108,6 @@ ci: ## Run CI checks locally
 	make test
 	make build
 
-changelog: ## Generate changelog for a version (VERSION=x.y.z)
-	python scripts/generate_changelog.py $(VERSION)
-
 version: ## Show current version across all files
 	@echo "Current version information:"
 	@echo "pyproject.toml: $(shell grep '^version = ' pyproject.toml | cut -d'"' -f2)"
@@ -128,11 +125,9 @@ release: ## Prepare release (VERSION=x.y.z)
 	@sed -i '' 's/@click\.version_option(version=".*", prog_name="WiseRate")/@click.version_option(version="$(VERSION)", prog_name="WiseRate")/' src/wiserate/cli.py
 	@echo "4. Updating version in README.md..."
 	@sed -i '' 's|pip install git+https://github.com/Amet13/WiseRate.git@v.*|pip install git+https://github.com/Amet13/WiseRate.git@v$(VERSION)|' README.md
-	@echo "5. Generating changelog..."
-	@make changelog VERSION=$(VERSION)
-	@echo "6. Building package..."
+	@echo "5. Building package..."
 	@make build
-	@echo "7. Running tests..."
+	@echo "6. Running tests..."
 	@make test
 	@echo "Release $(VERSION) prepared successfully!"
 	@echo "Next steps:"

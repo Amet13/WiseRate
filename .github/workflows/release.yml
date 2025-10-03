@@ -13,8 +13,6 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0 # Fetch all history for changelog generation
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -62,35 +60,6 @@ jobs:
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "Found version: $VERSION"
 
-      - name: Generate changelog
-        id: changelog
-        run: |
-          # Get the current tag (triggered by tag push)
-          CURRENT_TAG=${GITHUB_REF#refs/tags/}
-
-          # Get the previous release tag
-          PREVIOUS_TAG=$(git describe --tags --abbrev=0 HEAD~1 2>/dev/null || echo "")
-
-          # Generate changelog directly without creating a file
-          if [ -z "$PREVIOUS_TAG" ]; then
-            # First release, get all commits
-            CHANGELOG=$(python scripts/generate_changelog.py ${{ steps.package_version.outputs.version }} --stdout)
-          else
-            # Get commits since last release
-            CHANGELOG=$(python scripts/generate_changelog.py ${{ steps.package_version.outputs.version }} $PREVIOUS_TAG --stdout)
-          fi
-
-          # Check if changelog generation was successful
-          if [ $? -ne 0 ] || [ -z "$CHANGELOG" ]; then
-            echo "Warning: Changelog generation failed or empty, using fallback"
-            CHANGELOG="## Release ${{ steps.package_version.outputs.version }}"
-          fi
-
-          # Set output for next steps
-          echo "changelog<<EOF" >> $GITHUB_OUTPUT
-          echo "$CHANGELOG" >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
-
       - name: Create Release and Upload Assets
         uses: softprops/action-gh-release@v2
         env:
@@ -99,8 +68,6 @@ jobs:
           tag_name: ${{ github.ref_name }}
           name: ${{ steps.package_version.outputs.version }}
           body: |
-            ${{ steps.changelog.outputs.changelog }}
-
             ## Installation
 
             **Using pipx (recommended):**
