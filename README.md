@@ -60,7 +60,7 @@ pipx ensurepath
 pipx install git+https://github.com/Amet13/WiseRate.git
 
 # Or install specific version
-pipx install git+https://github.com/Amet13/WiseRate.git@v2.2.1
+pipx install git+https://github.com/Amet13/WiseRate.git@v2.3.0
 
 # Verify installation
 wiserate --version

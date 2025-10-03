@@ -43,7 +43,7 @@ def configure_logging(
         ...     log_file=Path("~/.wiserate/wiserate.log"),
         ...     enable_json=False
         ... )
-        >>> logger.info("Application started", version="2.2.1")
+        >>> logger.info("Application started", version="2.3.0")
     """
     # Convert string log level to logging constant
     numeric_level = getattr(logging, log_level.upper(), logging.INFO)

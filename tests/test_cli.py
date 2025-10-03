@@ -25,7 +25,7 @@ class TestCLI:
         """Test CLI version command."""
         result = runner.invoke(cli, ["--version"])
         assert result.exit_code == 0
-        assert "2.2.1" in result.output
+        assert "2.3.0" in result.output
 
     def test_config_command(self, runner):
         """Test config command."""
