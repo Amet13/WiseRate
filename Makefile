@@ -24,7 +24,7 @@ test-file: ## Run specific test file (FILE=path/to/test.py)
 	pytest -v $(FILE)
 
 test-coverage: ## Run tests with coverage report
-	pytest -v --cov=wiserate --cov-report=html --cov-report=term-missing
+	pytest -v --cov=src/wiserate --cov-report=html --cov-report=term-missing --cov-report=xml --cov-fail-under=80
 
 lint: ## Run all linting checks
 	black --check --diff src/ tests/

@@ -188,25 +188,86 @@ async def retry_with_backoff(func, max_retries: int = 3, base_delay: float = 1.0
 
 
 def load_json_file(file_path: Path, default: dict | None = None) -> dict[str, Any]:
-    """Load JSON file with error handling."""
+    """Load JSON file with error handling and validation.
+
+    Args:
+        file_path: Path to JSON file
+        default: Default value if file doesn't exist or is invalid
+
+    Returns:
+        Loaded JSON data or default value
+
+    Example:
+        >>> data = load_json_file(Path("config.json"), default={})
+    """
     if default is None:
         default = {}
 
     try:
         if file_path.exists():
+            # Check file size to prevent loading extremely large files
+            file_size = file_path.stat().st_size
+            max_size = 100 * 1024 * 1024  # 100 MB limit
+            if file_size > max_size:
+                raise ValueError(f"File too large: {file_size} bytes (max: {max_size})")
+
             with open(file_path, "r", encoding="utf-8") as f:
-                return json.load(f)
-    except (json.JSONDecodeError, IOError):
-        pass
+                data = json.load(f)
+
+                # Validate that result is a dictionary
+                if not isinstance(data, dict):
+                    raise ValueError(f"Expected dict, got {type(data).__name__}")
+
+                return data
+    except (json.JSONDecodeError, IOError, ValueError) as e:
+        # Log but don't crash - return default
+        import structlog
+        logger = structlog.get_logger(__name__)
+        logger.warning("Failed to load JSON file", path=str(file_path), error=str(e))
 
     return default
 
 
 def save_json_file(file_path: Path, data: dict) -> None:
-    """Save JSON file with error handling."""
+    """Save JSON file with error handling and atomic writes.
+
+    Uses atomic write pattern to prevent data corruption if write is interrupted.
+
+    Args:
+        file_path: Path to save JSON file
+        data: Dictionary data to save
+
+    Raises:
+        IOError: If file save operation fails
+        ValueError: If data is not serializable
+
+    Example:
+        >>> save_json_file(Path("config.json"), {"key": "value"})
+    """
     try:
         ensure_directory(file_path.parent)
-        with open(file_path, "w", encoding="utf-8") as f:
-            json.dump(data, f, indent=2, ensure_ascii=False)
+
+        # Validate data is serializable before writing
+        try:
+            json.dumps(data)
+        except (TypeError, ValueError) as e:
+            raise ValueError(f"Data is not JSON serializable: {e}")
+
+        # Atomic write: write to temp file first, then rename
+        temp_file = file_path.with_suffix(file_path.suffix + ".tmp")
+
+        try:
+            with open(temp_file, "w", encoding="utf-8") as f:
+                json.dump(data, f, indent=2, ensure_ascii=False)
+                # Ensure data is flushed to disk
+                f.flush()
+
+            # Atomic rename
+            temp_file.replace(file_path)
+        finally:
+            # Clean up temp file if it still exists
+            if temp_file.exists():
+                temp_file.unlink()
+
     except IOError as e:
         raise IOError(f"Failed to save {file_path}: {e}")

@@ -172,7 +172,14 @@ class ExchangeRateService:
         return cache_age.total_seconds() < self.settings.cache_ttl
 
     async def _save_to_cache(self, rate: ExchangeRate) -> None:
-        """Save exchange rate to persistent cache."""
+        """Save exchange rate to persistent cache.
+
+        Args:
+            rate: Exchange rate to save to cache
+
+        Raises:
+            CacheError: If cache save operation fails
+        """
         try:
             cache_data = load_json_file(self.settings.currencies_file)
             cache_key = f"{rate.source}_{rate.target}"
@@ -184,6 +191,7 @@ class ExchangeRateService:
             }
 
             save_json_file(self.settings.currencies_file, cache_data)
+            logger.debug("Saved rate to cache", pair=cache_key)
         except Exception as e:
             logger.error("Failed to save to cache", error=str(e))
             raise CacheError(f"Failed to save rate to cache: {e}")

@@ -21,23 +21,29 @@ WiseRate is a CLI tool for monitoring currency exchange rates, with support for 
 
 - **Modern Architecture**: Built with Python 3.13, async/await, and Pydantic v2 models
 - **API Integration**: Free exchange rate API with built-in caching and rate limiting
-- **Smart Caching**: Configurable cache TTL with fallback to stale data
+- **Smart Caching**: Configurable cache TTL with fallback to stale data and atomic writes
 - **Alert System**: Set price alerts with above/below thresholds
 - **Rich CLI**: Beautiful command-line interface with Click and Rich
 - **Interactive Mode**: Full command-line interface for easy use
 - **Multiple Output Formats**: JSON, CSV, and rich table output
 - **Currency Validation**: Built-in ISO 4217 currency code validation
-- **Structured Logging**: JSON logging with configurable levels
+- **Advanced Logging**: Structured logging with file rotation and multiple formats
+- **Environment Variables**: Full configuration via environment variables
 - **Rate Limiting**: Built-in API rate limiting and protection
-- **Configuration Management**: Built-in defaults with optional overrides
-- **Comprehensive Testing**: Full test suite with pytest (64 tests)
+- **Configuration Management**: Built-in defaults with flexible overrides
+- **Comprehensive Testing**: Full test suite with pytest and 80%+ coverage
+- **Type Safety**: Strict mypy type checking for reliability
+- **Security**: Input validation, secure file operations, and security policy
 - **Modern CI/CD**: GitHub Actions with automated testing and linting
+- **Developer Friendly**: Pre-commit hooks, EditorConfig, and comprehensive docs
 
 ## 🚀 Quick Start
 
 ### Prerequisites
 
-- Python 3.13
+- Python 3.13 or higher
+- pip (Python package manager)
+- Git (for installation from repository)
 
 ### Installation
 
@@ -46,7 +52,24 @@ WiseRate is a CLI tool for monitoring currency exchange rates, with support for 
 pip install git+https://github.com/Amet13/WiseRate.git
 
 # Or install specific version
-pip install git+https://github.com/Amet13/WiseRate.git@2.0.0
+pip install git+https://github.com/Amet13/WiseRate.git@v2.2.1
+```
+
+### Configuration
+
+WiseRate can be configured using environment variables:
+
+```bash
+# Copy example environment file
+cp .env.example .env
+
+# Edit .env with your preferences
+# Supported variables:
+# - WISERATE_API_URL: API endpoint URL
+# - WISERATE_DATA_DIR: Data storage directory
+# - WISERATE_CACHE_TTL: Cache duration in seconds (60-86400)
+# - WISERATE_LOG_LEVEL: Logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
+# - WISERATE_MAX_REQUESTS_PER_MINUTE: Rate limit (10-120)
 ```
 
 ### Basic Usage

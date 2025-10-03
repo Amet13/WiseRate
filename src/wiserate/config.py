@@ -8,13 +8,17 @@ Key Features:
 - Automatic data directory creation
 - Type-safe configuration access
 - Built-in sensible defaults
+- Environment variable support
 
 Configuration can be provided via:
-1. Constructor parameters
-2. Default values (built into the app)
+1. Environment variables (highest priority)
+2. Constructor parameters
+3. Default values (built into the app)
 """
 
+import os
 from pathlib import Path
+from typing import Optional
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
@@ -36,8 +40,9 @@ class Settings(BaseModel):
     This class manages all configuration for the WiseRate application using
     Pydantic's BaseModel. Configuration values can be provided through:
 
-    1. Constructor parameters
-    2. Default values (built into the app)
+    1. Environment variables (WISERATE_*)
+    2. Constructor parameters
+    3. Default values (built into the app)
 
     Attributes:
         api_url: Base URL for free exchange rate API
@@ -45,6 +50,13 @@ class Settings(BaseModel):
         cache_ttl: How long to cache exchange rates (seconds)
         log_level: Logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
         max_requests_per_minute: Rate limiting for API requests
+
+    Environment Variables:
+        WISERATE_API_URL: Override API URL
+        WISERATE_DATA_DIR: Override data directory
+        WISERATE_CACHE_TTL: Override cache TTL (seconds)
+        WISERATE_LOG_LEVEL: Override log level
+        WISERATE_MAX_REQUESTS_PER_MINUTE: Override rate limit
 
     Example:
         >>> settings = Settings()
@@ -54,6 +66,12 @@ class Settings(BaseModel):
         >>> settings = Settings(cache_ttl=300, log_level='DEBUG')
         >>> settings.cache_ttl
         300
+
+        >>> # Using environment variables
+        >>> os.environ['WISERATE_LOG_LEVEL'] = 'DEBUG'
+        >>> settings = Settings()
+        >>> settings.log_level
+        'DEBUG'
     """
 
     # API settings
@@ -158,7 +176,9 @@ class Settings(BaseModel):
     def __init__(self, **kwargs):
         """Initialize settings with custom values.
 
-        This constructor allows overriding default settings via keyword arguments.
+        This constructor allows overriding default settings via keyword arguments
+        or environment variables. Environment variables have priority over defaults
+        but are overridden by explicit keyword arguments.
 
         Args:
             **kwargs: Settings to override. Supported keys:
@@ -168,11 +188,54 @@ class Settings(BaseModel):
                 - max_requests_per_minute: Rate limiting value
                 - data_dir: Data directory path
         """
-        # Call parent constructor with provided values
-        super().__init__(**kwargs)
+        # Load from environment variables if not provided in kwargs
+        env_config = self._load_from_env()
+
+        # Merge: env vars < kwargs (kwargs override env vars)
+        merged_config = {**env_config, **kwargs}
+
+        # Call parent constructor with merged values
+        super().__init__(**merged_config)
 
         # Ensure data directory exists
         self.data_dir.mkdir(parents=True, exist_ok=True)
+
+    @staticmethod
+    def _load_from_env() -> dict:
+        """Load configuration from environment variables.
+
+        Returns:
+            Dictionary of configuration values from environment variables
+        """
+        config = {}
+
+        # API URL
+        if api_url := os.getenv("WISERATE_API_URL"):
+            config["api_url"] = api_url
+
+        # Data directory
+        if data_dir := os.getenv("WISERATE_DATA_DIR"):
+            config["data_dir"] = Path(data_dir)
+
+        # Cache TTL
+        if cache_ttl := os.getenv("WISERATE_CACHE_TTL"):
+            try:
+                config["cache_ttl"] = int(cache_ttl)
+            except ValueError:
+                pass  # Ignore invalid values, will use default
+
+        # Log level
+        if log_level := os.getenv("WISERATE_LOG_LEVEL"):
+            config["log_level"] = log_level
+
+        # Max requests per minute
+        if max_requests := os.getenv("WISERATE_MAX_REQUESTS_PER_MINUTE"):
+            try:
+                config["max_requests_per_minute"] = int(max_requests)
+            except ValueError:
+                pass  # Ignore invalid values, will use default
+
+        return config
 
     @property
     def currencies_file(self) -> Path:

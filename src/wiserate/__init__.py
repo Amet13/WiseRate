@@ -1,4 +1,13 @@
-"""Modern currency exchange rate monitoring CLI tool."""
+"""Modern currency exchange rate monitoring CLI tool.
+
+WiseRate is a modern CLI application for monitoring currency exchange rates
+with support for alerts, caching, and an interactive mode.
+
+Example:
+    >>> from wiserate import Settings, WiseRateApp
+    >>> settings = Settings()
+    >>> app = WiseRateApp(settings)
+"""
 
 __version__ = "2.2.1"
 __author__ = "Amet13"
@@ -9,6 +18,8 @@ from .exceptions import (
     APIError,
     CacheError,
     ConfigurationError,
+    NetworkError,
+    RateLimitError,
     ValidationError,
     WiseRateError,
 )
@@ -16,6 +27,8 @@ from .models import Alert, CurrencyPair, ExchangeRate
 from .utils import format_currency_amount, get_currency_name, validate_currency_code
 
 __all__ = [
+    "__version__",
+    "__author__",
     "Settings",
     "CurrencyPair",
     "ExchangeRate",
@@ -26,6 +39,8 @@ __all__ = [
     "ValidationError",
     "CacheError",
     "AlertError",
+    "RateLimitError",
+    "NetworkError",
     "validate_currency_code",
     "get_currency_name",
     "format_currency_amount",

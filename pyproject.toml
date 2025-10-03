@@ -34,11 +34,14 @@ dependencies = [
 dev = [
     "pytest>=8.4.0",
     "pytest-asyncio>=1.1.0",
+    "pytest-cov>=6.0.0",
+    "pytest-mock>=3.14.0",
     "black>=25.1.0",
     "isort>=6.0.0",
     "flake8>=7.3.0",
     "mypy>=1.17.0",
     "pre-commit>=4.3.0",
+    "coverage[toml]>=7.6.0",
 ]
 
 [project.scripts]
@@ -65,6 +68,11 @@ python_version = "3.13"
 warn_return_any = true
 warn_unused_configs = true
 disallow_untyped_defs = true
+disallow_incomplete_defs = true
+check_untyped_defs = true
+no_implicit_optional = true
+strict_equality = true
+show_error_codes = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
