@@ -17,14 +17,14 @@ jobs:
           fetch-depth: 0 # Fetch all history for changelog generation
 
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: "3.13"
+          cache: "pip"
 
       - name: Install dependencies
         run: |
-          python -m pip install --upgrade pip
-          pip install -e ".[dev]"
+          make install-dev
 
       - name: Build package
         run: |
@@ -103,7 +103,15 @@ jobs:
 
             ## Installation
 
+            **Using pipx (recommended):**
             ```bash
+            pipx install git+https://github.com/Amet13/WiseRate.git@${{ steps.package_version.outputs.version }}
+            ```
+
+            **Using pip with venv:**
+            ```bash
+            python3 -m venv wiserate-env
+            source wiserate-env/bin/activate
             pip install git+https://github.com/Amet13/WiseRate.git@${{ steps.package_version.outputs.version }}
             ```
 

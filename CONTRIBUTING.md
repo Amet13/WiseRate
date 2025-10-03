@@ -4,13 +4,21 @@ Thank you for your interest in contributing to WiseRate! This document provides 
 
 ## Table of Contents
 
-- [Code of Conduct](#code-of-conduct)
-- [Getting Started](#getting-started)
-- [Development Setup](#development-setup)
-- [Making Changes](#making-changes)
-- [Testing](#testing)
-- [Code Style](#code-style)
-- [Submitting Changes](#submitting-changes)
+- [Contributing to WiseRate](#contributing-to-wiserate)
+  - [Table of Contents](#table-of-contents)
+  - [Code of Conduct](#code-of-conduct)
+  - [Getting Started](#getting-started)
+  - [Development Setup](#development-setup)
+  - [Making Changes](#making-changes)
+  - [Testing](#testing)
+    - [Running Tests](#running-tests)
+    - [Writing Tests](#writing-tests)
+  - [Code Style](#code-style)
+    - [Code Style Guidelines](#code-style-guidelines)
+    - [Example Docstring](#example-docstring)
+  - [Submitting Changes](#submitting-changes)
+  - [Pull Request Checklist](#pull-request-checklist)
+  - [Questions?](#questions)
 
 ## Code of Conduct
 
@@ -33,23 +41,19 @@ By participating in this project, you agree to maintain a respectful and inclusi
 
 1. **Install Python 3.13** (required)
 
-2. **Create a virtual environment**:
-
-   ```bash
-   python3 -m venv venv
-   source venv/bin/activate  # On Windows: venv\Scripts\activate
-   ```
-
-3. **Install development dependencies**:
+2. **Install development dependencies**:
 
    ```bash
    make install-dev
    ```
 
-4. **Install pre-commit hooks**:
-   ```bash
-   pre-commit install
-   ```
+   This will:
+
+   - Create a virtual environment (if not exists)
+   - Install all required packages
+   - Set up pre-commit hooks automatically
+
+   **Note:** All `make` commands automatically use the venv when available, so you don't need to activate it manually!
 
 ## Making Changes
 

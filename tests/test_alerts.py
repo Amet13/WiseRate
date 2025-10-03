@@ -1,13 +1,12 @@
 """Tests for the alert service."""
 
 from decimal import Decimal
-from pathlib import Path
 
 import pytest
 
 from wiserate.alerts import AlertService
 from wiserate.config import Settings
-from wiserate.models import Alert, CurrencyPair, ExchangeRate
+from wiserate.models import CurrencyPair, ExchangeRate
 
 
 class TestAlertService:
@@ -182,4 +181,3 @@ class TestAlertService:
         key = service._get_alert_key(pair)
 
         assert key == "USD_EUR"
-

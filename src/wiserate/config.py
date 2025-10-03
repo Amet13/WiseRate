@@ -18,7 +18,6 @@ Configuration can be provided via:
 
 import os
 from pathlib import Path
-from typing import Optional
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
@@ -207,7 +206,7 @@ class Settings(BaseModel):
         Returns:
             Dictionary of configuration values from environment variables
         """
-        config = {}
+        config: dict = {}
 
         # API URL
         if api_url := os.getenv("WISERATE_API_URL"):

@@ -98,7 +98,10 @@ class ValidationError(WiseRateError):
     currency codes, malformed data, or constraint violations.
 
     Example:
-        >>> raise ValidationError("Invalid currency pair", details="Source and target must be different")
+        >>> raise ValidationError(
+        ...     "Invalid currency pair",
+        ...     details="Source and target must be different"
+        ... )
     """
 
     pass

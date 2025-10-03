@@ -222,6 +222,7 @@ def load_json_file(file_path: Path, default: dict | None = None) -> dict[str, An
     except (json.JSONDecodeError, IOError, ValueError) as e:
         # Log but don't crash - return default
         import structlog
+
         logger = structlog.get_logger(__name__)
         logger.warning("Failed to load JSON file", path=str(file_path), error=str(e))
 

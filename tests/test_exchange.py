@@ -9,7 +9,7 @@ import httpx
 import pytest
 
 from wiserate.config import Settings
-from wiserate.exceptions import APIError, CacheError
+from wiserate.exceptions import APIError
 from wiserate.exchange import ExchangeRateService, RateLimiter
 from wiserate.models import CurrencyPair, ExchangeRate
 
@@ -33,7 +33,6 @@ class TestRateLimiter:
 
         # Use some tokens
         await limiter.acquire()
-        initial_tokens = limiter.tokens
 
         # Wait a bit
         await asyncio.sleep(0.1)
@@ -61,12 +60,9 @@ class TestExchangeRateService:
         """Test successful exchange rate fetch."""
         pair = CurrencyPair(source="USD", target="EUR")
 
-        with patch.object(service, '_fetch_from_api', new_callable=AsyncMock) as mock_fetch:
+        with patch.object(service, "_fetch_from_api", new_callable=AsyncMock) as mock_fetch:
             expected_rate = ExchangeRate(
-                source="USD",
-                target="EUR",
-                rate=Decimal("0.85"),
-                timestamp=datetime.now(UTC)
+                source="USD", target="EUR", rate=Decimal("0.85"), timestamp=datetime.now(UTC)
             )
             mock_fetch.return_value = expected_rate
 
@@ -82,12 +78,9 @@ class TestExchangeRateService:
         pair = CurrencyPair(source="USD", target="EUR")
 
         # First call - fetch from API
-        with patch.object(service, '_fetch_from_api', new_callable=AsyncMock) as mock_fetch:
+        with patch.object(service, "_fetch_from_api", new_callable=AsyncMock) as mock_fetch:
             expected_rate = ExchangeRate(
-                source="USD",
-                target="EUR",
-                rate=Decimal("0.85"),
-                timestamp=datetime.now(UTC)
+                source="USD", target="EUR", rate=Decimal("0.85"), timestamp=datetime.now(UTC)
             )
             mock_fetch.return_value = expected_rate
 
@@ -104,7 +97,7 @@ class TestExchangeRateService:
         """Test handling of API errors."""
         pair = CurrencyPair(source="USD", target="EUR")
 
-        with patch.object(service, '_fetch_from_api', new_callable=AsyncMock) as mock_fetch:
+        with patch.object(service, "_fetch_from_api", new_callable=AsyncMock) as mock_fetch:
             mock_fetch.side_effect = APIError("API is down")
 
             with pytest.raises(APIError, match="API is down"):
@@ -116,15 +109,10 @@ class TestExchangeRateService:
         pair = CurrencyPair(source="USD", target="EUR")
 
         mock_response = MagicMock()
-        mock_response.json.return_value = {
-            "rates": {
-                "EUR": 0.85,
-                "GBP": 0.73
-            }
-        }
+        mock_response.json.return_value = {"rates": {"EUR": 0.85, "GBP": 0.73}}
         mock_response.raise_for_status = MagicMock()
 
-        with patch('httpx.AsyncClient') as mock_client:
+        with patch("httpx.AsyncClient") as mock_client:
             mock_client.return_value.__aenter__.return_value.get = AsyncMock(
                 return_value=mock_response
             )
@@ -138,23 +126,18 @@ class TestExchangeRateService:
     @pytest.mark.asyncio
     async def test_fetch_from_api_rate_not_found(self, service):
         """Test API response without requested currency."""
-        pair = CurrencyPair(source="USD", target="XYZ")
+        pair = CurrencyPair(source="USD", target="EUR")
 
         mock_response = MagicMock()
-        mock_response.json.return_value = {
-            "rates": {
-                "EUR": 0.85,
-                "GBP": 0.73
-            }
-        }
+        mock_response.json.return_value = {"rates": {"GBP": 0.73, "JPY": 110.0}}
         mock_response.raise_for_status = MagicMock()
 
-        with patch('httpx.AsyncClient') as mock_client:
+        with patch("httpx.AsyncClient") as mock_client:
             mock_client.return_value.__aenter__.return_value.get = AsyncMock(
                 return_value=mock_response
             )
 
-            with pytest.raises(APIError, match="Rate not found for XYZ"):
+            with pytest.raises(APIError, match="Rate not found for EUR"):
                 await service._fetch_from_api(pair)
 
     @pytest.mark.asyncio
@@ -162,12 +145,12 @@ class TestExchangeRateService:
         """Test API HTTP error handling."""
         pair = CurrencyPair(source="USD", target="EUR")
 
-        with patch('httpx.AsyncClient') as mock_client:
+        with patch("httpx.AsyncClient") as mock_client:
             mock_client.return_value.__aenter__.return_value.get = AsyncMock(
                 side_effect=httpx.HTTPStatusError(
                     "404 Not Found",
                     request=MagicMock(),
-                    response=MagicMock(status_code=404, text="Not Found")
+                    response=MagicMock(status_code=404, text="Not Found"),
                 )
             )
 
@@ -184,14 +167,10 @@ class TestExchangeRateService:
 
         # Add cache entry
         rate = ExchangeRate(
-            source="USD",
-            target="EUR",
-            rate=Decimal("0.85"),
-            timestamp=datetime.now(UTC)
+            source="USD", target="EUR", rate=Decimal("0.85"), timestamp=datetime.now(UTC)
         )
         service._cache[cache_key] = rate
         service._last_update = datetime.now(UTC)
 
         # Should be valid
         assert service._is_cache_valid(cache_key)
-

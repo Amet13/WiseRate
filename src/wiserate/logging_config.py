@@ -72,9 +72,11 @@ def configure_logging(
 
         # Add formatter
         if enable_json:
-            formatter = logging.Formatter(
-                '{"time":"%(asctime)s","level":"%(levelname)s","name":"%(name)s","message":"%(message)s"}'
+            json_format = (
+                '{"time":"%(asctime)s","level":"%(levelname)s",'
+                '"name":"%(name)s","message":"%(message)s"}'
             )
+            formatter = logging.Formatter(json_format)
         else:
             formatter = logging.Formatter(
                 "%(asctime)s - %(name)s - %(levelname)s - %(message)s",
@@ -147,4 +149,3 @@ class LoggerMixin:
     def logger(self) -> FilteringBoundLogger:
         """Get logger for this class."""
         return structlog.get_logger(self.__class__.__name__)
-

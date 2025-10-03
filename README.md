@@ -47,12 +47,40 @@ WiseRate is a CLI tool for monitoring currency exchange rates, with support for 
 
 ### Installation
 
+**Recommended: Using pipx (easiest and safest)**
+
+pipx installs CLI tools in isolated environments automatically:
+
 ```bash
-# Install latest version from main branch
-pip install git+https://github.com/Amet13/WiseRate.git
+# Install pipx (one-time setup)
+brew install pipx
+pipx ensurepath
+
+# Install WiseRate
+pipx install git+https://github.com/Amet13/WiseRate.git
 
 # Or install specific version
-pip install git+https://github.com/Amet13/WiseRate.git@v2.2.1
+pipx install git+https://github.com/Amet13/WiseRate.git@v2.2.1
+
+# Verify installation
+wiserate --version
+```
+
+**Alternative: Using pip in virtual environment**
+
+```bash
+# Create and activate virtual environment
+python3 -m venv ~/.local/wiserate-env
+source ~/.local/wiserate-env/bin/activate
+
+# Install WiseRate
+pip install git+https://github.com/Amet13/WiseRate.git
+
+# Create a symlink for easy access (optional)
+ln -s ~/.local/wiserate-env/bin/wiserate /usr/local/bin/wiserate
+
+# Verify installation
+wiserate --version
 ```
 
 ### Configuration
@@ -150,18 +178,17 @@ src/wiserate/
 git clone https://github.com/Amet13/WiseRate.git
 cd WiseRate
 
-# Install development dependencies
-pip install -e ".[dev]"
-
-# Install pre-commit hooks
-pre-commit install
+# Install development dependencies (creates venv automatically)
+make install-dev
 
 # Use make commands for common tasks
 make help          # Show all available commands
 make test          # Run all tests
 make lint          # Run all linting tools
 make format        # Format code with Black and isort
-make clean         # Clean up generated files
+make clean         # Clean up generated files (including venv)
+
+# Note: All make commands automatically use venv when available
 ```
 
 ### Running Tests

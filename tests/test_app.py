@@ -33,7 +33,9 @@ class TestWiseRateApp:
     @pytest.mark.asyncio
     async def test_get_exchange_rate(self, app):
         """Test getting exchange rate."""
-        with patch.object(app.exchange_service, 'get_exchange_rate', new_callable=AsyncMock) as mock_get:
+        with patch.object(
+            app.exchange_service, "get_exchange_rate", new_callable=AsyncMock
+        ) as mock_get:
             mock_rate = ExchangeRate(source="USD", target="EUR", rate=Decimal("0.85"))
             mock_get.return_value = mock_rate
 
@@ -93,7 +95,9 @@ class TestWiseRateApp:
     @pytest.mark.asyncio
     async def test_update_all_rates(self, app):
         """Test updating all rates."""
-        with patch.object(app.exchange_service, 'get_all_rates', new_callable=AsyncMock) as mock_get:
+        with patch.object(
+            app.exchange_service, "get_all_rates", new_callable=AsyncMock
+        ) as mock_get:
             mock_get.return_value = []
 
             await app.update_all_rates()
@@ -107,13 +111,14 @@ class TestWiseRateApp:
         await app.set_alert("USD", "EUR", Decimal("0.90"), is_above=True)
 
         # Mock exchange service to return rate that triggers alert
-        with patch.object(app.exchange_service, 'get_exchange_rate', new_callable=AsyncMock) as mock_get:
+        with patch.object(
+            app.exchange_service, "get_exchange_rate", new_callable=AsyncMock
+        ) as mock_get:
             mock_rate = ExchangeRate(source="USD", target="EUR", rate=Decimal("0.95"))
             mock_get.return_value = mock_rate
 
-            result = await app.get_exchange_rate("USD", "EUR")
+            await app.get_exchange_rate("USD", "EUR")
 
             # Alert should have been triggered
             alert = app.alert_service.get_alert(CurrencyPair(source="USD", target="EUR"))
             assert alert.last_triggered is not None
-

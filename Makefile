@@ -7,37 +7,81 @@ help: ## Show this help message
 	@echo "Available commands:"
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-20s\033[0m %s\n", $$1, $$2}'
 
-install: ## Install the package
-	pip install -e .
+install: ## Install the package using pipx (recommended)
+	@echo "For regular installation, use pipx:"
+	@echo "  pipx install -e ."
+	@echo ""
+	@echo "For development, use: make install-dev"
 
-install-dev: ## Install development dependencies
-	pip install -e ".[dev]"
-	pre-commit install
+install-dev: ## Install development dependencies (uses venv)
+	@if [ ! -d "venv" ]; then \
+		echo "Creating virtual environment..."; \
+		python3 -m venv venv; \
+		echo "✅ Virtual environment created!"; \
+	fi
+	@echo "Installing in development mode..."
+	./venv/bin/pip install -e ".[dev]"
+	./venv/bin/pre-commit install
+	@echo ""
+	@echo "✅ Development environment ready!"
+	@echo "Note: Commands in Makefile will use venv automatically"
 
 test: ## Run tests
-	pytest -v
+	@if [ -d "venv" ]; then \
+		./venv/bin/python -m pytest -v; \
+	else \
+		python3 -m pytest -v; \
+	fi
 
 test-verbose: ## Run tests with verbose output
-	pytest -v --tb=short
+	@if [ -d "venv" ]; then \
+		./venv/bin/python -m pytest -v --tb=short; \
+	else \
+		python3 -m pytest -v --tb=short; \
+	fi
 
 test-file: ## Run specific test file (FILE=path/to/test.py)
-	pytest -v $(FILE)
+	@if [ -d "venv" ]; then \
+		./venv/bin/python -m pytest -v $(FILE); \
+	else \
+		python3 -m pytest -v $(FILE); \
+	fi
 
 test-coverage: ## Run tests with coverage report
-	pytest -v --cov=src/wiserate --cov-report=html --cov-report=term-missing --cov-report=xml --cov-fail-under=80
+	@if [ -d "venv" ]; then \
+		./venv/bin/python -m pytest -v --cov=src/wiserate --cov-report=html --cov-report=term-missing --cov-report=xml --cov-fail-under=80; \
+	else \
+		python3 -m pytest -v --cov=src/wiserate --cov-report=html --cov-report=term-missing --cov-report=xml --cov-fail-under=80; \
+	fi
 
 lint: ## Run all linting checks
-	black --check --diff src/ tests/
-	isort --check-only --diff src/ tests/
-	flake8 src/ tests/
-	mypy src/
+	@if [ -d "venv" ]; then \
+		./venv/bin/python -m black --check --diff src/ tests/; \
+		./venv/bin/python -m isort --check-only --diff src/ tests/; \
+		./venv/bin/python -m flake8 src/ tests/; \
+		./venv/bin/python -m mypy src/; \
+	else \
+		python3 -m black --check --diff src/ tests/; \
+		python3 -m isort --check-only --diff src/ tests/; \
+		python3 -m flake8 src/ tests/; \
+		python3 -m mypy src/; \
+	fi
 
 type-check: ## Run type checking only
-	mypy src/
+	@if [ -d "venv" ]; then \
+		./venv/bin/python -m mypy src/; \
+	else \
+		python3 -m mypy src/; \
+	fi
 
 format: ## Format code
-	black src/ tests/
-	isort src/ tests/
+	@if [ -d "venv" ]; then \
+		./venv/bin/python -m black src/ tests/; \
+		./venv/bin/python -m isort src/ tests/; \
+	else \
+		python3 -m black src/ tests/; \
+		python3 -m isort src/ tests/; \
+	fi
 
 clean: ## Clean build artifacts
 	rm -rf build/
@@ -46,12 +90,13 @@ clean: ## Clean build artifacts
 	rm -rf htmlcov/
 	rm -rf .coverage
 	rm -rf .pytest_cache/
+	rm -rf venv/
 	find . -type d -name __pycache__ -delete
 	find . -type f -name "*.pyc" -delete
 
 build: ## Build package
-	python -m pip install --upgrade build
-	python -m build
+	python3 -m pip install --upgrade build
+	python3 -m build
 
 check: ## Run all checks (lint + test)
 	make lint
