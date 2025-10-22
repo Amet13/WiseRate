@@ -16,29 +16,10 @@ logger = structlog.get_logger(__name__)
 class WiseRateApp:
     """Main application class for the currency exchange bot."""
 
-    def __init__(self, settings: Settings):
+    def __init__(self, settings: Settings) -> None:
         self.settings = settings
         self.exchange_service = ExchangeRateService(settings)
         self.alert_service = AlertService(settings)
-
-        # Configure logging
-        structlog.configure(
-            processors=[
-                structlog.stdlib.filter_by_level,
-                structlog.stdlib.add_logger_name,
-                structlog.stdlib.add_log_level,
-                structlog.stdlib.PositionalArgumentsFormatter(),
-                structlog.processors.TimeStamper(fmt="iso"),
-                structlog.processors.StackInfoRenderer(),
-                structlog.processors.format_exc_info,
-                structlog.processors.UnicodeDecoder(),
-                structlog.dev.ConsoleRenderer(),
-            ],
-            context_class=dict,
-            logger_factory=structlog.stdlib.LoggerFactory(),
-            wrapper_class=structlog.stdlib.BoundLogger,
-            cache_logger_on_first_use=True,
-        )
 
     async def start(self) -> None:
         """Start the application."""
@@ -51,7 +32,7 @@ class WiseRateApp:
         """Get exchange rate for a currency pair."""
         try:
             currency_pair = CurrencyPair(source=source, target=target)
-            rate = await self.exchange_service.get_exchange_rate(currency_pair)
+            rate = await self.exchange_service.get_exchange_rate(currency_pair, update_cache)
 
             # Check if any alerts should be triggered
             triggered_alerts = self.alert_service.check_alerts(rate)

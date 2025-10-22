@@ -146,6 +146,40 @@ class TestFileOperations:
         assert test_file.parent.exists()
         assert test_file.parent.parent.exists()
 
+    def test_load_json_file_not_dict(self, tmp_path):
+        """Test loading JSON file that's not a dict."""
+        test_file = tmp_path / "not_dict.json"
+
+        # Write a list instead of dict
+        with open(test_file, "w") as f:
+            json.dump([1, 2, 3], f)
+
+        loaded_data = load_json_file(test_file)
+        # Should return default when not a dict
+        assert loaded_data == {}
+
+    def test_save_json_file_not_serializable(self, tmp_path):
+        """Test saving non-serializable data."""
+        test_file = tmp_path / "not_serializable.json"
+
+        # Try to save an object that's not JSON serializable
+        class NonSerializable:
+            pass
+
+        with pytest.raises(ValueError, match="Data is not JSON serializable"):
+            save_json_file(test_file, {"obj": NonSerializable()})
+
+    def test_save_json_file_with_non_ascii(self, tmp_path):
+        """Test saving JSON file with non-ASCII characters."""
+        test_file = tmp_path / "unicode.json"
+        test_data = {"emoji": "🎉", "japanese": "日本語", "arabic": "العربية"}
+
+        save_json_file(test_file, test_data)
+
+        assert test_file.exists()
+        loaded_data = load_json_file(test_file)
+        assert loaded_data == test_data
+
 
 class TestRetryLogic:
     """Test retry with backoff functionality."""

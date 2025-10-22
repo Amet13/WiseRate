@@ -122,3 +122,80 @@ class TestWiseRateApp:
             # Alert should have been triggered
             alert = app.alert_service.get_alert(CurrencyPair(source="USD", target="EUR"))
             assert alert.last_triggered is not None
+
+    @pytest.mark.asyncio
+    async def test_get_exchange_rate_with_update_cache(self, app):
+        """Test getting exchange rate with cache update."""
+        with patch.object(
+            app.exchange_service, "get_exchange_rate", new_callable=AsyncMock
+        ) as mock_get:
+            mock_rate = ExchangeRate(source="USD", target="EUR", rate=Decimal("0.85"))
+            mock_get.return_value = mock_rate
+
+            result = await app.get_exchange_rate("USD", "EUR", update_cache=True)
+
+            assert result.source == "USD"
+            mock_get.assert_called_once_with(CurrencyPair(source="USD", target="EUR"), True)
+
+    @pytest.mark.asyncio
+    async def test_get_exchange_rate_exception(self, app):
+        """Test exception handling in get_exchange_rate."""
+        with patch.object(
+            app.exchange_service, "get_exchange_rate", new_callable=AsyncMock
+        ) as mock_get:
+            mock_get.side_effect = Exception("API Error")
+
+            with pytest.raises(Exception, match="API Error"):
+                await app.get_exchange_rate("USD", "EUR")
+
+    @pytest.mark.asyncio
+    async def test_set_alert_exception(self, app):
+        """Test exception handling in set_alert."""
+        with patch.object(app.alert_service, "add_alert", side_effect=Exception("Alert Error")):
+            result = await app.set_alert("USD", "EUR", Decimal("0.90"))
+            assert result is False
+
+    @pytest.mark.asyncio
+    async def test_remove_alert_exception(self, app):
+        """Test exception handling in remove_alert."""
+        with patch.object(app.alert_service, "remove_alert", side_effect=Exception("Remove Error")):
+            result = await app.remove_alert("USD", "EUR")
+            assert result is False
+
+    @pytest.mark.asyncio
+    async def test_update_all_rates_with_alerts(self, app):
+        """Test updating all rates with active alerts."""
+        # Add an alert first
+        await app.set_alert("USD", "EUR", Decimal("0.90"))
+
+        with patch.object(
+            app.exchange_service, "get_all_rates", new_callable=AsyncMock
+        ) as mock_get:
+            mock_rate = ExchangeRate(source="USD", target="EUR", rate=Decimal("0.95"))
+            mock_get.return_value = [mock_rate]
+
+            await app.update_all_rates()
+
+            mock_get.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_monitoring_loop_basic(self, app):
+        """Test basic monitoring loop functionality."""
+        with (
+            patch.object(app.alert_service, "get_all_alerts", return_value=[]),
+            patch.object(app.exchange_service, "get_exchange_rate", new_callable=AsyncMock),
+        ):
+            # Create a task that will be cancelled
+            import asyncio
+
+            task = asyncio.create_task(app.run_monitoring_loop(interval=0.1))
+
+            # Let it run for a bit
+            await asyncio.sleep(0.2)
+
+            # Cancel the monitoring loop
+            task.cancel()
+            try:
+                await task
+            except asyncio.CancelledError:
+                pass

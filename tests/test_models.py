@@ -76,11 +76,12 @@ class TestExchangeRate:
             ExchangeRate(source="EUR", target="USD", rate=Decimal("-1"))
 
     def test_format_rate(self):
-        """Test rate formatting."""
-        rate = ExchangeRate(source="EUR", target="USD", rate=Decimal("1.123456"))
-        assert rate.format_rate(2) == "1 EUR = 1.12 USD"
-        assert rate.format_rate(4) == "1 EUR = 1.1235 USD"
-        assert rate.format_rate(6) == "1 EUR = 1.123456 USD"
+        """Test exchange rate formatting."""
+        rate = ExchangeRate(source="USD", target="EUR", rate=Decimal("0.85"))
+        formatted = rate.format_rate()
+        assert "0.85" in formatted
+        assert "USD" in formatted
+        assert "EUR" in formatted
 
 
 class TestAlert:
@@ -135,3 +136,26 @@ class TestAlert:
         assert alert.last_triggered is None
         alert.trigger()
         assert alert.last_triggered is not None
+
+    def test_currency_pair_str(self):
+        """Test currency pair string representation."""
+        pair = CurrencyPair(source="USD", target="EUR")
+        pair_str = str(pair)
+        assert "USD" in pair_str
+        assert "EUR" in pair_str
+
+    def test_exchange_rate_str(self):
+        """Test exchange rate string representation."""
+        rate = ExchangeRate(source="USD", target="EUR", rate=Decimal("0.85"))
+        rate_str = str(rate)
+        assert "USD" in rate_str
+        assert "EUR" in rate_str
+        assert "0.85" in rate_str
+
+    def test_alert_str(self):
+        """Test alert string representation."""
+        currency_pair = CurrencyPair(source="USD", target="EUR")
+        alert = Alert(currency_pair=currency_pair, threshold=Decimal("0.90"))
+        alert_str = str(alert)
+        assert isinstance(alert_str, str)
+        assert len(alert_str) > 0

@@ -207,3 +207,33 @@ class TestSettingsOverrides:
         """Test max requests configuration override."""
         settings = Settings(max_requests_per_minute=90)
         assert settings.max_requests_per_minute == 90
+
+    def test_cache_ttl_string_conversion(self):
+        """Test cache TTL string to int conversion."""
+        settings = Settings(cache_ttl="7200")
+        assert settings.cache_ttl == 7200
+        assert isinstance(settings.cache_ttl, int)
+
+    def test_cache_ttl_string_conversion_invalid(self):
+        """Test invalid cache TTL string conversion."""
+        with pytest.raises(ValueError, match="Cache TTL must be a valid integer"):
+            Settings(cache_ttl="invalid_number")
+
+    def test_max_requests_string_conversion(self):
+        """Test max requests string to int conversion."""
+        settings = Settings(max_requests_per_minute="45")
+        assert settings.max_requests_per_minute == 45
+        assert isinstance(settings.max_requests_per_minute, int)
+
+    def test_max_requests_string_conversion_invalid(self):
+        """Test invalid max requests string conversion."""
+        with pytest.raises(ValueError, match="Max requests per minute must be a valid integer"):
+            Settings(max_requests_per_minute="invalid_number")
+
+    def test_settings_model_config(self):
+        """Test settings model configuration."""
+        settings = Settings()
+        assert settings.api_url is not None
+        assert settings.cache_ttl > 0
+        assert settings.max_requests_per_minute > 0
+        assert settings.log_level in SUPPORTED_LOG_LEVELS

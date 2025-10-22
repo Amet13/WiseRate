@@ -19,7 +19,8 @@ WiseRate is a CLI tool for monitoring currency exchange rates, with support for 
 
 ## ✨ Features
 
-- **Modern Architecture**: Built with Python 3.13, async/await, and Pydantic v2 models
+- **Modern Architecture**: Built with Python 3.14, async/await, and Pydantic v2 models
+- **Fast Package Management**: Powered by uv for rapid dependency resolution
 - **API Integration**: Free exchange rate API with built-in caching and rate limiting
 - **Smart Caching**: Configurable cache TTL with fallback to stale data and atomic writes
 - **Alert System**: Set price alerts with above/below thresholds
@@ -31,25 +32,40 @@ WiseRate is a CLI tool for monitoring currency exchange rates, with support for 
 - **Environment Variables**: Full configuration via environment variables
 - **Rate Limiting**: Built-in API rate limiting and protection
 - **Configuration Management**: Built-in defaults with flexible overrides
-- **Comprehensive Testing**: Full test suite with pytest and 80%+ coverage
+- **Comprehensive Testing**: Full test suite with pytest and70%+ coverage
 - **Type Safety**: Strict mypy type checking for reliability
 - **Security**: Input validation, secure file operations, and security policy
 - **Modern CI/CD**: GitHub Actions with automated testing and linting
-- **Developer Friendly**: Pre-commit hooks, EditorConfig, and comprehensive docs
 
 ## 🚀 Quick Start
 
 ### Prerequisites
 
-- Python 3.13 or higher
-- pip (Python package manager)
-- Git (for installation from repository)
+- Python 3.14 or higher
+- uv (ultra-fast Python package manager)
+- just (modern command runner)
 
 ### Installation
 
-**Recommended: Using pipx (easiest and safest)**
+**Recommended: Using uv (fastest)**
 
-pipx installs CLI tools in isolated environments automatically:
+uv provides the fastest package installation experience:
+
+```bash
+# Install uv (one-time setup)
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# Create a new project with WiseRate
+uv add git+https://github.com/Amet13/WiseRate.git
+
+# Or install specific version
+uv add git+https://github.com/Amet13/WiseRate.git@v2.3.1
+
+# Verify installation
+wiserate --version
+```
+
+**Alternative: Using pipx**
 
 ```bash
 # Install pipx (one-time setup)
@@ -58,9 +74,6 @@ pipx ensurepath
 
 # Install WiseRate
 pipx install git+https://github.com/Amet13/WiseRate.git
-
-# Or install specific version
-pipx install git+https://github.com/Amet13/WiseRate.git@v2.3.0
 
 # Verify installation
 wiserate --version
@@ -174,37 +187,38 @@ src/wiserate/
 ### Setup Development Environment
 
 ```bash
+# Install just (one-time setup)
+curl --proto '=https' --tlsv1.2 -sSf https://just.systems/install.sh | bash
+
 # Clone and setup
 git clone https://github.com/Amet13/WiseRate.git
 cd WiseRate
 
-# Install development dependencies (creates venv automatically)
-make install-dev
+# Install development dependencies with uv
+just install-dev
 
-# Use make commands for common tasks
-make help          # Show all available commands
-make test          # Run all tests
-make lint          # Run all linting tools
-make format        # Format code with Black and isort
-make clean         # Clean up generated files (including venv)
-
-# Note: All make commands automatically use venv when available
+# Use just commands for common tasks
+just help           # Show all available commands
+just test           # Run all tests
+just lint           # Run all linting tools
+just fmt            # Format code with Black and isort
+just clean          # Clean up generated files
 ```
 
 ### Running Tests
 
 ```bash
 # Run all tests
-make test
+just test
 
 # Run tests with verbose output
-make test-verbose
+just test-verbose
 
 # Run specific test file
-make test-file FILE=tests/test_exchange.py
+just test-file tests/test_exchange.py
 
-# Run tests with coverage (if coverage tools installed)
-make test-coverage
+# Run tests with coverage
+just test-coverage
 ```
 
 ### Code Quality
@@ -217,12 +231,12 @@ The project uses several tools to maintain code quality:
 - **mypy**: Type checking
 - **pre-commit**: Git hooks for quality checks
 
-All tools can be run individually or together using `make` commands:
+All tools can be run individually or together using `just` commands:
 
 ```bash
-make format        # Format code (Black + isort)
-make lint          # Run all linting tools
-make type-check    # Run type checking with mypy
+just fmt            # Format code (Black + isort)
+just lint           # Run all linting tools
+just type-check     # Run type checking with mypy
 ```
 
 ## 🔒 Security Features

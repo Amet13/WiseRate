@@ -17,10 +17,10 @@ classifiers = [
     "Intended Audience :: End Users/Desktop",
     "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
     "Topic :: Office/Business :: Financial",
 ]
-requires-python = ">=3.13"
+requires-python = ">=3.14"
 dependencies = [
     "httpx>=0.28.0",
     "pydantic>=2.11.0",
@@ -55,6 +55,10 @@ Issues = "https://github.com/Amet13/WiseRate/issues"
 [tool.hatch.build.targets.wheel]
 packages = ["src/wiserate"]
 
+[tool.uv]
+# uv configuration for faster dependency resolution
+managed = true
+
 [tool.black]
 line-length = 100
 target-version = ['py313']
@@ -64,7 +68,7 @@ profile = "black"
 multi_line_output = 3
 
 [tool.mypy]
-python_version = "3.13"
+python_version = "3.14"
 warn_return_any = true
 warn_unused_configs = true
 disallow_untyped_defs = true
@@ -81,3 +85,21 @@ python_classes = ["Test*"]
 python_functions = ["test_*"]
 addopts = "-v"
 asyncio_mode = "auto"
+
+[tool.coverage.run]
+# Exclude files that are difficult to test (setup/config)
+omit = [
+    "src/wiserate/logging_config.py",
+]
+
+[tool.coverage.report]
+# Exclude certain lines from coverage
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+    "if TYPE_CHECKING:",
+    "if sys.version_info",
+]

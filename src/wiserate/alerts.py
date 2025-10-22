@@ -17,7 +17,7 @@ logger = structlog.get_logger(__name__)
 class AlertService:
     """Service for managing exchange rate alerts."""
 
-    def __init__(self, settings: Settings):
+    def __init__(self, settings: Settings) -> None:
         self.settings = settings
         self._alerts: Dict[str, Alert] = {}
         self._load_alerts()

@@ -55,12 +55,14 @@ class ExchangeRateService:
         self._last_update: Optional[datetime] = None
         self._rate_limiter = RateLimiter(settings.max_requests_per_minute)
 
-    async def get_exchange_rate(self, currency_pair: CurrencyPair) -> ExchangeRate:
+    async def get_exchange_rate(
+        self, currency_pair: CurrencyPair, update_cache: bool = False
+    ) -> ExchangeRate:
         """Get the current exchange rate for a currency pair."""
         cache_key = f"{currency_pair.source}_{currency_pair.target}"
 
-        # Check cache first
-        if self._is_cache_valid(cache_key):
+        # Check cache first (unless update_cache is True)
+        if not update_cache and self._is_cache_valid(cache_key):
             logger.info("Returning cached exchange rate", pair=cache_key)
             return self._cache[cache_key]
 
@@ -109,7 +111,7 @@ class ExchangeRateService:
             "Fetching exchange rate", source=currency_pair.source, target=currency_pair.target
         )
 
-        async def _make_request():
+        async def _make_request() -> dict:
             url = f"{self.settings.api_url}/latest/{currency_pair.source}"
 
             async with httpx.AsyncClient() as client:
