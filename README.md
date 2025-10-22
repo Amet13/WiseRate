@@ -59,7 +59,7 @@ curl -LsSf https://astral.sh/uv/install.sh | sh
 uv add git+https://github.com/Amet13/WiseRate.git
 
 # Or install specific version
-uv add git+https://github.com/Amet13/WiseRate.git@v2.3.1
+uv add git+https://github.com/Amet13/WiseRate.git@v2.4.0
 
 # Verify installation
 wiserate --version
