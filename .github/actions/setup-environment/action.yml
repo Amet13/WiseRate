@@ -1,32 +1,23 @@
-name: 'Setup Python Environment'
-description: 'Setup Python, uv, just, and install dependencies'
+name: "Setup Python Environment"
+description: "Setup Python, uv, just, and install dependencies"
 
 inputs:
   python-version:
-    description: 'Python version to use'
+    description: "Python version to use"
     required: false
-    default: '3.14'
+    default: "3.14"
   cache-uv:
-    description: 'Whether to cache uv dependencies'
+    description: "Whether to cache uv dependencies"
     required: false
-    default: 'true'
-  fetch-depth:
-    description: 'Git fetch depth (0 for full history)'
-    required: false
-    default: '1'
+    default: "true"
   install-command:
-    description: 'Command to install dependencies'
+    description: "Command to install dependencies"
     required: false
-    default: 'just install-dev'
+    default: "just install-dev"
 
 runs:
-  using: 'composite'
+  using: "composite"
   steps:
-    - name: Checkout code
-      uses: actions/checkout@v5
-      with:
-        fetch-depth: ${{ inputs.fetch-depth == '0' && 0 || 1 }}
-
     - name: Set up Python ${{ inputs.python-version }}
       uses: actions/setup-python@v5
       with:
@@ -36,7 +27,7 @@ runs:
     - name: Install uv
       uses: astral-sh/setup-uv@v5
       with:
-        version: 'latest'
+        version: "latest"
 
     - name: Cache uv dependencies
       if: inputs.cache-uv == 'true'
@@ -50,7 +41,7 @@ runs:
     - name: Install just
       uses: extractions/setup-just@v1
       with:
-        just-version: 'latest'
+        just-version: "latest"
 
     - name: Install dependencies
       shell: bash

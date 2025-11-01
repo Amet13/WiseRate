@@ -18,10 +18,13 @@ jobs:
       contents: write
       packages: write
     steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0  # Full history for version detection
+
       - name: Setup environment
         uses: ./.github/actions/setup-environment
-        with:
-          fetch-depth: 0 # Full history for version detection
 
       - name: Run tests
         uses: ./.github/actions/run-tests
