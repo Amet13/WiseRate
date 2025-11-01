@@ -3,7 +3,7 @@ name: Publish Release
 on:
   push:
     tags:
-      - "[0-9]*.*.*" # Semantic versioning tags (e.g., 2.5.0)
+      - "*.*.*" # Semantic versioning tags (e.g., 2.5.0)
   workflow_dispatch:
     inputs:
       tag:
@@ -39,6 +39,7 @@ jobs:
           # Get version from git tag or workflow input
           if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
             INPUT_TAG="${{ github.event.inputs.tag }}"
+            echo "Input tag received: $INPUT_TAG"
             # Remove 'v' prefix if present (for backwards compatibility)
             VERSION="${INPUT_TAG#v}"
             # Use semantic versioning without 'v' prefix
@@ -46,6 +47,7 @@ jobs:
           else
             # For push events, use the actual tag that was pushed
             TAG="${GITHUB_REF#refs/tags/}"
+            echo "Tag from push event: $TAG"
             # Remove 'v' prefix if present (for backwards compatibility)
             VERSION="${TAG#v}"
           fi
@@ -53,6 +55,7 @@ jobs:
           # Validate semantic version format (should be x.y.z)
           if ! echo "$VERSION" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+$'; then
             echo "Error: Invalid semantic version format: $VERSION (expected x.y.z)"
+            echo "Please use semantic versioning format like: 2.5.0"
             exit 1
           fi
 
