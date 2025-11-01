@@ -3,12 +3,14 @@ name: Publish Release
 on:
   push:
     tags:
-      - "v*.*.*" # Semantic versioning tags
+      - "v*.*.*" # Semantic versioning tags with 'v' prefix
+      - "[0-9]*.*.*" # Semantic versioning tags without 'v' prefix
   workflow_dispatch:
     inputs:
       tag:
-        description: "Release tag (e.g., v2.4.0)"
+        description: "Release version (e.g., 2.5.0) - enter version WITHOUT 'v' prefix"
         required: true
+        type: string
 
 jobs:
   release:
@@ -21,7 +23,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v5
         with:
-          fetch-depth: 0  # Full history for version detection
+          fetch-depth: 0 # Full history for version detection
 
       - name: Setup environment
         uses: ./.github/actions/setup-environment
@@ -37,13 +39,17 @@ jobs:
         run: |
           # Get version from git tag or workflow input
           if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
-            TAG="${{ github.event.inputs.tag }}"
+            INPUT_TAG="${{ github.event.inputs.tag }}"
+            # Remove 'v' prefix if present from input
+            VERSION="${INPUT_TAG#v}"
+            # Always add 'v' prefix for git tag (for consistency)
+            TAG="v${VERSION}"
           else
+            # For push events, use the actual tag that was pushed
             TAG="${GITHUB_REF#refs/tags/}"
+            # Remove 'v' prefix if present to get clean version
+            VERSION="${TAG#v}"
           fi
-
-          # Remove 'v' prefix if present
-          VERSION="${TAG#v}"
 
           # Validate version format (should be x.y.z)
           if ! echo "$VERSION" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+$'; then
@@ -61,11 +67,9 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           tag_name: ${{ steps.package_version.outputs.tag }}
-          name: Release ${{ steps.package_version.outputs.version }}
+          name: ${{ steps.package_version.outputs.version }}
           body: |
-            ## 🎉 Release ${{ steps.package_version.outputs.version }}
-
-            ### Installation
+            ## Installation
 
             **Using uv (recommended - fastest):**
             ```bash
@@ -98,10 +102,6 @@ jobs:
             ### Documentation
 
             See [README.md](README.md) for full documentation and examples.
-
-            ### Changelog
-
-            See [CHANGELOG.md](CHANGELOG.md) for detailed changes in this release.
           files: |
             dist/wiserate-${{ steps.package_version.outputs.version }}-*.whl
             dist/wiserate-${{ steps.package_version.outputs.version }}.tar.gz
