@@ -1,6 +1,5 @@
 """Tests for the main application class."""
 
-import asyncio
 import contextlib
 from decimal import Decimal
 from unittest.mock import AsyncMock, patch

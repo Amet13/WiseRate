@@ -270,7 +270,7 @@ def load_json_file(file_path: Path, default: dict[str, Any] | None = None) -> di
             if file_size > max_size:
                 raise ValueError(f"File too large: {file_size} bytes (max: {max_size})")
 
-            with open(file_path, encoding="utf-8") as f:
+            with file_path.open(encoding="utf-8") as f:
                 data = json.load(f)
 
                 # Validate that result is a dictionary
@@ -363,7 +363,7 @@ def save_json_file(file_path: Path, data: dict[str, Any]) -> None:
         temp_file = file_path.with_suffix(file_path.suffix + ".tmp")
 
         try:
-            with open(temp_file, "w", encoding="utf-8") as f:
+            with temp_file.open("w", encoding="utf-8") as f:
                 json.dump(data, f, indent=2, ensure_ascii=False)
                 # Ensure data is flushed to disk
                 f.flush()

@@ -4,6 +4,7 @@ import asyncio
 from datetime import UTC, datetime
 from decimal import Decimal
 from types import TracebackType
+from typing import Any
 
 import httpx
 import structlog
@@ -154,11 +155,11 @@ class ExchangeRateService:
             "Fetching exchange rate", source=currency_pair.source, target=currency_pair.target
         )
 
-        async def _make_request() -> dict:
+        async def _make_request() -> dict[str, Any]:
             url = f"{self.settings.api_url}/latest/{currency_pair.source}"
             response = await self._client.get(url)
             response.raise_for_status()
-            return response.json()
+            return response.json()  # type: ignore[no-any-return]
 
         try:
             data = await retry_with_backoff(_make_request)
