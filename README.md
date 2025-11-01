@@ -3,8 +3,8 @@
   <h1>WiseRate</h1>
   <p><strong>CLI tool for monitoring favorable currency exchange rates</strong></p>
   <p>
-    <a href="https://github.com/Amet13/WiseRate/actions/workflows/ci.yml">
-      <img src="https://github.com/Amet13/WiseRate/actions/workflows/ci.yml/badge.svg" alt="CI Status">
+    <a href="https://github.com/Amet13/WiseRate/actions/workflows/ci-cd.yml">
+      <img src="https://github.com/Amet13/WiseRate/actions/workflows/ci-cd.yml/badge.svg" alt="CI Status">
     </a>
     <a href="https://github.com/Amet13/WiseRate/blob/main/LICENSE">
       <img src="https://img.shields.io/badge/License-MIT-green" alt="MIT License">
