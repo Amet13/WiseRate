@@ -3,12 +3,11 @@ name: Publish Release
 on:
   push:
     tags:
-      - "v*.*.*" # Semantic versioning tags with 'v' prefix
-      - "[0-9]*.*.*" # Semantic versioning tags without 'v' prefix
+      - "[0-9]*.*.*" # Semantic versioning tags (e.g., 2.5.0)
   workflow_dispatch:
     inputs:
       tag:
-        description: "Release version (e.g., 2.5.0) - enter version WITHOUT 'v' prefix"
+        description: "Release version in semantic versioning format (e.g., 2.5.0)"
         required: true
         type: string
 
@@ -40,20 +39,20 @@ jobs:
           # Get version from git tag or workflow input
           if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
             INPUT_TAG="${{ github.event.inputs.tag }}"
-            # Remove 'v' prefix if present from input
+            # Remove 'v' prefix if present (for backwards compatibility)
             VERSION="${INPUT_TAG#v}"
-            # Always add 'v' prefix for git tag (for consistency)
-            TAG="v${VERSION}"
+            # Use semantic versioning without 'v' prefix
+            TAG="$VERSION"
           else
             # For push events, use the actual tag that was pushed
             TAG="${GITHUB_REF#refs/tags/}"
-            # Remove 'v' prefix if present to get clean version
+            # Remove 'v' prefix if present (for backwards compatibility)
             VERSION="${TAG#v}"
           fi
 
-          # Validate version format (should be x.y.z)
+          # Validate semantic version format (should be x.y.z)
           if ! echo "$VERSION" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+$'; then
-            echo "Error: Invalid version format: $VERSION (expected x.y.z)"
+            echo "Error: Invalid semantic version format: $VERSION (expected x.y.z)"
             exit 1
           fi
 
