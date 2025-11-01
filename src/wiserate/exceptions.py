@@ -11,10 +11,8 @@ Exception Hierarchy:
     ├── CacheError (cache read/write issues)
     ├── AlertError (alert management issues)
     ├── RateLimitError (rate limiting issues)
-    └── NetworkError (network connectivity issues)
+    └── NetworkError (network connectivity errors)
 """
-
-from typing import Optional
 
 
 class WiseRateError(Exception):
@@ -28,7 +26,7 @@ class WiseRateError(Exception):
         details: Optional additional details about the error
     """
 
-    def __init__(self, message: str, details: Optional[str] = None):
+    def __init__(self, message: str, details: str | None = None) -> None:
         """Initialize the exception with a message and optional details.
 
         Args:
@@ -74,10 +72,10 @@ class APIError(WiseRateError):
     def __init__(
         self,
         message: str,
-        details: Optional[str] = None,
-        status_code: Optional[int] = None,
-        response_text: Optional[str] = None,
-    ):
+        details: str | None = None,
+        status_code: int | None = None,
+        response_text: str | None = None,
+    ) -> None:
         """Initialize API error with optional HTTP details.
 
         Args:
@@ -146,8 +144,8 @@ class RateLimitError(WiseRateError):
     """
 
     def __init__(
-        self, message: str, details: Optional[str] = None, retry_after: Optional[int] = None
-    ):
+        self, message: str, details: str | None = None, retry_after: int | None = None
+    ) -> None:
         """Initialize rate limit error with optional retry information.
 
         Args:

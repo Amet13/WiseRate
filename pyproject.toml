@@ -23,7 +23,7 @@ classifiers = [
 requires-python = ">=3.14"
 dependencies = [
     "httpx>=0.28.0",
-    "pydantic>=2.11.0",
+    "pydantic>=2.12.0",
     "structlog>=25.4.0",
     "click>=8.1.0",
     "rich>=14.1.0",
@@ -38,8 +38,9 @@ dev = [
     "pytest-mock>=3.14.0",
     "black>=25.1.0",
     "isort>=6.0.0",
-    "flake8>=7.3.0",
+    "ruff>=0.8.0",
     "mypy>=1.17.0",
+    "pyright>=1.1.0",
     "pre-commit>=4.3.0",
     "coverage[toml]>=7.6.0",
 ]
@@ -61,7 +62,7 @@ managed = true
 
 [tool.black]
 line-length = 100
-target-version = ['py313']
+target-version = ['py314']
 
 [tool.isort]
 profile = "black"
@@ -78,6 +79,22 @@ no_implicit_optional = true
 strict_equality = true
 show_error_codes = true
 
+[[tool.mypy.overrides]]
+module = [
+    "click.*",
+    "rich.*",
+    "structlog.*",
+    "httpx.*",
+    "aiofiles.*",
+]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = [
+    "tests.*",
+]
+disallow_untyped_defs = false
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 python_files = ["test_*.py"]
@@ -87,13 +104,23 @@ addopts = "-v"
 asyncio_mode = "auto"
 
 [tool.coverage.run]
-# Exclude files that are difficult to test (setup/config)
+# Coverage configuration
+source = ["src/wiserate"]
 omit = [
-    "src/wiserate/logging_config.py",
+    "*/tests/*",
+    "*/test_*.py",
+    "*/__pycache__/*",
+    "*/site-packages/*",
+    "*/venv/*",
+    "*/env/*",
+    "src/wiserate/logging_config.py",  # Config code, difficult to test
 ]
 
 [tool.coverage.report]
-# Exclude certain lines from coverage
+# Coverage report settings
+precision = 2
+show_missing = true
+skip_covered = false
 exclude_lines = [
     "pragma: no cover",
     "def __repr__",
@@ -102,4 +129,72 @@ exclude_lines = [
     "if __name__ == .__main__.:",
     "if TYPE_CHECKING:",
     "if sys.version_info",
+    "if 0:",
+    "if False:",
+    "@abstractmethod",
+    "@abc.abstractmethod",
+    "@overload",
+]
+
+[tool.coverage.html]
+directory = "htmlcov"
+
+[tool.coverage.xml]
+output = "coverage.xml"
+
+[tool.ruff]
+# Ruff configuration - fast Python linter written in Rust
+line-length = 100
+target-version = "py314"
+
+[tool.ruff.lint]
+# Ruff lint rules
+select = [
+    "E",      # pycodestyle errors
+    "W",      # pycodestyle warnings
+    "F",      # pyflakes
+    "I",      # isort
+    "B",      # flake8-bugbear
+    "C4",     # flake8-comprehensions
+    "UP",     # pyupgrade
+    "ARG",    # flake8-unused-arguments
+    "SIM",    # flake8-simplify
+    "TCH",    # flake8-type-checking
+    "PTH",    # flake8-use-pathlib
+]
+ignore = [
+    "E501",   # line too long (handled by black)
+    "B008",   # do not perform function calls in argument defaults
+    "C901",   # too complex
+    "TCH001", # type-checking imports (we use runtime imports for click decorators)
+    "TCH002", # type-checking imports
+    "TCH003", # type-checking imports
+    "ARG001", # unused arguments (click requires ctx parameter)
+    "B017",   # blind exception in tests (acceptable for pytest.raises)
+    "B904",   # raise from None (acceptable for our error handling)
+]
+
+[tool.ruff.lint.isort]
+# Configure isort via ruff
+known-first-party = ["wiserate"]
+
+[tool.ruff.lint.per-file-ignores]
+# Ignore specific rules for specific files
+"__init__.py" = ["F401"]  # unused imports allowed in __init__
+"tests/**/*.py" = ["ARG", "S101"]  # allow unused args and assert in tests
+
+[tool.pyright]
+# Pyright configuration for additional type checking
+pythonVersion = "3.14"
+pythonPlatform = "All"
+typeCheckingMode = "basic"
+reportMissingImports = true
+reportMissingTypeStubs = false
+exclude = [
+    "**/node_modules",
+    "**/__pycache__",
+    ".venv",
+    "venv",
+    "build",
+    "dist",
 ]

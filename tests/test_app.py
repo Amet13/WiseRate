@@ -1,5 +1,6 @@
 """Tests for the main application class."""
 
+import contextlib
 from decimal import Decimal
 from unittest.mock import AsyncMock, patch
 
@@ -195,7 +196,5 @@ class TestWiseRateApp:
 
             # Cancel the monitoring loop
             task.cancel()
-            try:
+            with contextlib.suppress(asyncio.CancelledError):
                 await task
-            except asyncio.CancelledError:
-                pass

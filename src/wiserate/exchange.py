@@ -3,7 +3,8 @@
 import asyncio
 from datetime import UTC, datetime
 from decimal import Decimal
-from typing import Dict, List, Optional
+from types import TracebackType
+from typing import Any
 
 import httpx
 import structlog
@@ -12,7 +13,7 @@ from pydantic import ValidationError
 from .config import Settings
 from .exceptions import APIError, CacheError
 from .models import CurrencyPair, ExchangeRate
-from .utils import load_json_file, retry_with_backoff, save_json_file
+from .utils import load_json_file_async, retry_with_backoff, save_json_file_async
 
 logger = structlog.get_logger(__name__)
 
@@ -51,14 +52,41 @@ class ExchangeRateService:
 
     def __init__(self, settings: Settings):
         self.settings = settings
-        self._cache: Dict[str, ExchangeRate] = {}
-        self._last_update: Optional[datetime] = None
+        self._cache: dict[str, ExchangeRate] = {}
+        self._last_update: datetime | None = None
         self._rate_limiter = RateLimiter(settings.max_requests_per_minute)
+        # Create persistent AsyncClient with connection pooling
+        limits = httpx.Limits(max_connections=10, max_keepalive_connections=5)
+        timeout = httpx.Timeout(30.0, connect=10.0)
+        self._client = httpx.AsyncClient(limits=limits, timeout=timeout)
+        # Request deduplication: track pending requests to avoid duplicate API calls
+        self._pending_requests: dict[str, asyncio.Task[ExchangeRate]] = {}
+
+    async def __aenter__(self) -> ExchangeRateService:
+        """Async context manager entry."""
+        return self
+
+    async def __aexit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: TracebackType | None,
+    ) -> None:
+        """Async context manager exit - close client."""
+        await self._client.aclose()
+
+    async def close(self) -> None:
+        """Close the HTTP client."""
+        await self._client.aclose()
 
     async def get_exchange_rate(
         self, currency_pair: CurrencyPair, update_cache: bool = False
     ) -> ExchangeRate:
-        """Get the current exchange rate for a currency pair."""
+        """Get the current exchange rate for a currency pair.
+
+        Implements request deduplication: if multiple concurrent requests
+        are made for the same currency pair, they share the same API call.
+        """
         cache_key = f"{currency_pair.source}_{currency_pair.target}"
 
         # Check cache first (unless update_cache is True)
@@ -66,9 +94,22 @@ class ExchangeRateService:
             logger.info("Returning cached exchange rate", pair=cache_key)
             return self._cache[cache_key]
 
-        # Fetch fresh data
+        # Check if there's already a pending request for this pair
+        if cache_key in self._pending_requests:
+            logger.debug("Deduplicating request", pair=cache_key)
+            try:
+                return await self._pending_requests[cache_key]
+            except Exception:
+                # If the pending request failed, remove it and continue
+                self._pending_requests.pop(cache_key, None)
+                raise
+
+        # Create new request task
+        request_task = asyncio.create_task(self._fetch_exchange_rate(currency_pair))
+        self._pending_requests[cache_key] = request_task
+
         try:
-            rate = await self._fetch_exchange_rate(currency_pair)
+            rate = await request_task
             self._cache[cache_key] = rate
             self._last_update = datetime.now(UTC)
             await self._save_to_cache(rate)
@@ -80,8 +121,11 @@ class ExchangeRateService:
                 logger.warning("Returning stale cached data", pair=cache_key)
                 return self._cache[cache_key]
             raise
+        finally:
+            # Clean up pending request
+            self._pending_requests.pop(cache_key, None)
 
-    async def get_all_rates(self) -> List[ExchangeRate]:
+    async def get_all_rates(self) -> list[ExchangeRate]:
         """Get all available exchange rates."""
         try:
             rates = await self._fetch_all_rates()
@@ -111,13 +155,11 @@ class ExchangeRateService:
             "Fetching exchange rate", source=currency_pair.source, target=currency_pair.target
         )
 
-        async def _make_request() -> dict:
+        async def _make_request() -> dict[str, Any]:
             url = f"{self.settings.api_url}/latest/{currency_pair.source}"
-
-            async with httpx.AsyncClient() as client:
-                response = await client.get(url, timeout=30.0)
-                response.raise_for_status()
-                return response.json()
+            response = await self._client.get(url)
+            response.raise_for_status()
+            return response.json()  # type: ignore[no-any-return]
 
         try:
             data = await retry_with_backoff(_make_request)
@@ -146,17 +188,36 @@ class ExchangeRateService:
             )
         except httpx.HTTPStatusError as e:
             logger.error(
-                "API HTTP error", status_code=e.response.status_code, response=e.response.text
+                "API HTTP error",
+                status_code=e.response.status_code,
+                url=str(e.request.url),
+                response=e.response.text[:200] if e.response.text else None,
             )
-            raise APIError(f"API error: {e.response.status_code} - {e.response.text}")
+            raise APIError(
+                f"API error: {e.response.status_code}",
+                status_code=e.response.status_code,
+                response_text=e.response.text[:500] if e.response.text else None,
+            )
+        except httpx.TimeoutException as e:
+            logger.error(
+                "API timeout error", url=str(e.request.url) if hasattr(e, "request") else None
+            )
+            raise APIError(f"API request timed out: {e}")
+        except httpx.ConnectError as e:
+            logger.error("API connection error", error=str(e))
+            raise APIError(f"Failed to connect to API: {e}")
         except httpx.RequestError as e:
-            logger.error("API request error", error=str(e))
+            logger.error(
+                "API request error",
+                error=str(e),
+                url=str(e.request.url) if hasattr(e, "request") else None,
+            )
             raise APIError(f"API request failed: {e}")
         except Exception as e:
-            logger.error("Unexpected API error", error=str(e))
+            logger.error("Unexpected API error", error=str(e), error_type=type(e).__name__)
             raise APIError(f"Unexpected error fetching from API: {e}")
 
-    async def _fetch_all_rates(self) -> List[ExchangeRate]:
+    async def _fetch_all_rates(self) -> list[ExchangeRate]:
         """Fetch all available exchange rates."""
         # This would need to be implemented based on the specific API
         # For now, return empty list
@@ -183,7 +244,7 @@ class ExchangeRateService:
             CacheError: If cache save operation fails
         """
         try:
-            cache_data = load_json_file(self.settings.currencies_file)
+            cache_data = await load_json_file_async(self.settings.currencies_file)
             cache_key = f"{rate.source}_{rate.target}"
             cache_data[cache_key] = {
                 "source": rate.source,
@@ -192,13 +253,13 @@ class ExchangeRateService:
                 "timestamp": rate.timestamp.isoformat(),
             }
 
-            save_json_file(self.settings.currencies_file, cache_data)
+            await save_json_file_async(self.settings.currencies_file, cache_data)
             logger.debug("Saved rate to cache", pair=cache_key)
         except Exception as e:
             logger.error("Failed to save to cache", error=str(e))
             raise CacheError(f"Failed to save rate to cache: {e}")
 
-    async def _save_all_to_cache(self, rates: List[ExchangeRate]) -> None:
+    async def _save_all_to_cache(self, rates: list[ExchangeRate]) -> None:
         """Save all exchange rates to persistent cache."""
         try:
             cache_data = {}
@@ -211,15 +272,15 @@ class ExchangeRateService:
                     "timestamp": rate.timestamp.isoformat(),
                 }
 
-            save_json_file(self.settings.currencies_file, cache_data)
+            await save_json_file_async(self.settings.currencies_file, cache_data)
         except Exception as e:
             logger.error("Failed to save all rates to cache", error=str(e))
             raise CacheError(f"Failed to save all rates to cache: {e}")
 
-    async def _load_from_cache(self) -> List[ExchangeRate]:
+    async def _load_from_cache(self) -> list[ExchangeRate]:
         """Load exchange rates from persistent cache."""
         try:
-            cache_data = load_json_file(self.settings.currencies_file)
+            cache_data = await load_json_file_async(self.settings.currencies_file)
             rates = []
 
             for key, data in cache_data.items():

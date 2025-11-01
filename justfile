@@ -27,7 +27,7 @@ install-dev:
 
 # Install the package using uv in editable mode
 install:
-    uv pip install -e .
+    uv sync --no-dev
 
 # Run all tests with pytest
 test:
@@ -61,23 +61,45 @@ lint:
     #!/usr/bin/env bash
     echo "Running code quality checks..."
     uv run black --check --diff src/ tests/
-    uv run isort --check-only --diff src/ tests/
-    uv run flake8 src/ tests/
+    uv run ruff check src/ tests/
     uv run mypy src/
     echo ""
     echo "✅ All code quality checks passed!"
 
-# Format code with black and isort
+# Format code with black, ruff, and isort
 fmt:
     #!/usr/bin/env bash
     echo "Formatting code..."
     uv run black src/ tests/
+    uv run ruff check --fix src/ tests/
+    uv run ruff format src/ tests/
     uv run isort src/ tests/
     echo "✅ Code formatted!"
+
+# Format check (for CI - fails if code needs formatting)
+fmt-check:
+    #!/usr/bin/env bash
+    echo "Checking code formatting..."
+    uv run black --check src/ tests/ || exit 1
+    uv run ruff check src/ tests/ || exit 1
+    uv run isort --check-only src/ tests/ || exit 1
+    echo "✅ Code formatting check passed!"
 
 # Run type checking with mypy
 type-check:
     uv run mypy src/
+
+# Run type checking with pyright (additional type checker)
+pyright-check:
+    uv run pyright src/
+
+# Run ruff linter
+ruff:
+    uv run ruff check src/ tests/
+
+# Run ruff formatter
+ruff-fmt:
+    uv run ruff format src/ tests/
 
 # Clean build artifacts
 clean:

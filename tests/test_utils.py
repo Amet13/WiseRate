@@ -101,7 +101,7 @@ class TestFileOperations:
         test_file = tmp_path / "test.json"
         test_data = {"key": "value", "number": 42}
 
-        with open(test_file, "w") as f:
+        with test_file.open("w") as f:
             json.dump(test_data, f)
 
         loaded_data = load_json_file(test_file)
@@ -117,7 +117,7 @@ class TestFileOperations:
         """Test loading invalid JSON file."""
         test_file = tmp_path / "invalid.json"
 
-        with open(test_file, "w") as f:
+        with test_file.open("w") as f:
             f.write("invalid json content")
 
         loaded_data = load_json_file(test_file)
@@ -131,7 +131,7 @@ class TestFileOperations:
         save_json_file(test_file, test_data)
 
         assert test_file.exists()
-        with open(test_file, "r") as f:
+        with test_file.open() as f:
             loaded_data = json.load(f)
         assert loaded_data == test_data
 
@@ -151,7 +151,7 @@ class TestFileOperations:
         test_file = tmp_path / "not_dict.json"
 
         # Write a list instead of dict
-        with open(test_file, "w") as f:
+        with test_file.open("w") as f:
             json.dump([1, 2, 3], f)
 
         loaded_data = load_json_file(test_file)

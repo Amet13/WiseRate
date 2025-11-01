@@ -1,0 +1,109 @@
+name: Publish Release
+
+on:
+  push:
+    tags:
+      - "v*.*.*" # Semantic versioning tags
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag (e.g., v2.4.0)"
+        required: true
+
+jobs:
+  release:
+    name: Build and Release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      packages: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0  # Full history for version detection
+
+      - name: Setup environment
+        uses: ./.github/actions/setup-environment
+
+      - name: Run tests
+        uses: ./.github/actions/run-tests
+
+      - name: Build package
+        uses: ./.github/actions/build-package
+
+      - name: Get package version
+        id: package_version
+        run: |
+          # Get version from git tag or workflow input
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            TAG="${{ github.event.inputs.tag }}"
+          else
+            TAG="${GITHUB_REF#refs/tags/}"
+          fi
+
+          # Remove 'v' prefix if present
+          VERSION="${TAG#v}"
+
+          # Validate version format (should be x.y.z)
+          if ! echo "$VERSION" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "Error: Invalid version format: $VERSION (expected x.y.z)"
+            exit 1
+          fi
+
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+          echo "Found version: $VERSION from tag: $TAG"
+
+      - name: Create Release and Upload Assets
+        uses: softprops/action-gh-release@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ steps.package_version.outputs.tag }}
+          name: Release ${{ steps.package_version.outputs.version }}
+          body: |
+            ## 🎉 Release ${{ steps.package_version.outputs.version }}
+
+            ### Installation
+
+            **Using uv (recommended - fastest):**
+            ```bash
+            uv add git+https://github.com/Amet13/WiseRate.git@${{ steps.package_version.outputs.tag }}
+            ```
+
+            **Using pipx:**
+            ```bash
+            pipx install git+https://github.com/Amet13/WiseRate.git@${{ steps.package_version.outputs.tag }}
+            ```
+
+            **Using pip with venv:**
+            ```bash
+            python3 -m venv wiserate-env
+            source wiserate-env/bin/activate
+            pip install git+https://github.com/Amet13/WiseRate.git@${{ steps.package_version.outputs.tag }}
+            ```
+
+            ### Quick Start
+
+            ```bash
+            wiserate --help
+            ```
+
+            ### Requirements
+
+            - Python 3.14 or higher
+            - uv (recommended) or pip
+
+            ### Documentation
+
+            See [README.md](README.md) for full documentation and examples.
+
+            ### Changelog
+
+            See [CHANGELOG.md](CHANGELOG.md) for detailed changes in this release.
+          files: |
+            dist/wiserate-${{ steps.package_version.outputs.version }}-*.whl
+            dist/wiserate-${{ steps.package_version.outputs.version }}.tar.gz
+          draft: false
+          prerelease: ${{ contains(steps.package_version.outputs.version, 'alpha') || contains(steps.package_version.outputs.version, 'beta') || contains(steps.package_version.outputs.version, 'rc') }}

@@ -114,29 +114,44 @@ venv.bak/
 # mkdocs documentation
 /site
 
-# mypy
+# Type checkers
 .mypy_cache/
 .dmypy.json
 dmypy.json
-
-# Pyre type checker
 .pyre/
+.pytype/
 
-# IDEs
+# Ruff cache
+.ruff_cache/
+
+# IDE and editor files
 .vscode/
 .idea/
+*.sublime-project
+*.sublime-workspace
+.DS_Store
+*.code-workspace
 *.swp
 *.swo
 *~
-.DS_Store
+
+# OS files
+Thumbs.db
+ehthumbs.db
+Desktop.ini
 
 # WiseRate specific
 .wiserate/
 *.log
 currencies.json
 alerts.json
+*.json.tmp
 
 # Temporary files
 *.tmp
 *.bak
 *.orig
+
+# Build artifacts (keep dist/ in gitignore but allow .whl and .tar.gz patterns)
+*.whl
+*.tar.gz

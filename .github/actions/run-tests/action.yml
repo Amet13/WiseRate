@@ -1,0 +1,33 @@
+name: 'Run Tests'
+description: 'Run tests with optional coverage'
+
+inputs:
+  coverage:
+    description: 'Whether to run tests with coverage'
+    required: false
+    default: 'false'
+  upload-coverage:
+    description: 'Whether to upload coverage to Codecov'
+    required: false
+    default: 'false'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Run tests
+      shell: bash
+      run: |
+        if [ "${{ inputs.coverage }}" == "true" ]; then
+          just test-coverage
+        else
+          just test
+        fi
+
+    - name: Upload coverage to Codecov
+      if: inputs.upload-coverage == 'true'
+      uses: codecov/codecov-action@v5
+      with:
+        files: ./coverage.xml
+        flags: unittests
+        name: codecov-umbrella
+        fail_ci_if_error: false

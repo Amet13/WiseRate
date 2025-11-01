@@ -16,10 +16,11 @@ Configuration can be provided via:
 3. Default values (built into the app)
 """
 
+import contextlib
 import os
 from pathlib import Path
 
-from pydantic import BaseModel, Field, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from .constants import (
     DEFAULT_CACHE_TTL,
@@ -73,6 +74,12 @@ class Settings(BaseModel):
         'DEBUG'
     """
 
+    model_config = ConfigDict(
+        str_strip_whitespace=True,
+        validate_assignment=True,
+        extra="forbid",
+    )
+
     # API settings
     api_url: str = Field(default="https://api.exchangerate-api.com/v4")
 
@@ -85,7 +92,7 @@ class Settings(BaseModel):
     max_requests_per_minute: int = Field(default=DEFAULT_MAX_REQUESTS_PER_MINUTE)
 
     @model_validator(mode="after")
-    def validate_settings(self) -> "Settings":
+    def validate_settings(self) -> Settings:
         """Validate all settings after model creation.
 
         This method is called after all field validation and can perform
@@ -119,7 +126,7 @@ class Settings(BaseModel):
 
     @field_validator("cache_ttl", mode="before")
     @classmethod
-    def validate_cache_ttl(cls, v) -> int:
+    def validate_cache_ttl(cls, v: str | int) -> int:
         """Validate cache TTL value.
 
         Args:
@@ -146,7 +153,7 @@ class Settings(BaseModel):
 
     @field_validator("max_requests_per_minute", mode="before")
     @classmethod
-    def validate_max_requests(cls, v) -> int:
+    def validate_max_requests(cls, v: str | int) -> int:
         """Validate max requests per minute value.
 
         Args:
@@ -172,7 +179,7 @@ class Settings(BaseModel):
             )
         return v
 
-    def __init__(self, **kwargs):
+    def __init__(self, **kwargs: object) -> None:
         """Initialize settings with custom values.
 
         This constructor allows overriding default settings via keyword arguments
@@ -218,10 +225,8 @@ class Settings(BaseModel):
 
         # Cache TTL
         if cache_ttl := os.getenv("WISERATE_CACHE_TTL"):
-            try:
+            with contextlib.suppress(ValueError):
                 config["cache_ttl"] = int(cache_ttl)
-            except ValueError:
-                pass  # Ignore invalid values, will use default
 
         # Log level
         if log_level := os.getenv("WISERATE_LOG_LEVEL"):
@@ -229,10 +234,8 @@ class Settings(BaseModel):
 
         # Max requests per minute
         if max_requests := os.getenv("WISERATE_MAX_REQUESTS_PER_MINUTE"):
-            try:
+            with contextlib.suppress(ValueError):
                 config["max_requests_per_minute"] = int(max_requests)
-            except ValueError:
-                pass  # Ignore invalid values, will use default
 
         return config
 

@@ -37,6 +37,10 @@ class WiseRateApp:
             # Check if any alerts should be triggered
             triggered_alerts = self.alert_service.check_alerts(rate)
 
+            # Save alerts if any were triggered (async save since we're in async context)
+            if triggered_alerts:
+                await self.alert_service._save_alerts_async()
+
             # Log triggered alerts
             for triggered_alert in triggered_alerts:
                 logger.info(
@@ -66,6 +70,8 @@ class WiseRateApp:
         try:
             currency_pair = CurrencyPair(source=source, target=target)
             self.alert_service.add_alert(currency_pair, threshold, is_above)
+            # Await async save since we're in async context
+            await self.alert_service._save_alerts_async()
             logger.info(
                 f"Alert set: 1 {source} {'above' if is_above else 'below'} {threshold} {target}"
             )
@@ -88,6 +94,8 @@ class WiseRateApp:
             success = self.alert_service.remove_alert(currency_pair)
 
             if success:
+                # Await async save since we're in async context
+                await self.alert_service._save_alerts_async()
                 logger.info(f"Alert removed for {source}/{target}")
 
             return success
@@ -139,24 +147,28 @@ class WiseRateApp:
                 if alerts:
                     logger.info("Checking alerts", count=len(alerts))
 
-                    # Check each alert by getting current rates
-                    for alert in alerts:
-                        if alert.enabled:
-                            try:
-                                await self.get_exchange_rate(
-                                    alert.currency_pair.source,
-                                    alert.currency_pair.target,
-                                )
+                    # Check all alerts concurrently using TaskGroup (Python 3.11+)
+                    enabled_alerts = [alert for alert in alerts if alert.enabled]
+                    if enabled_alerts:
+                        try:
+                            async with asyncio.TaskGroup() as tg:
+                                # Create tasks for all enabled alerts concurrently
+                                for alert in enabled_alerts:
+                                    tg.create_task(
+                                        self.get_exchange_rate(
+                                            alert.currency_pair.source,
+                                            alert.currency_pair.target,
+                                        )
+                                    )
 
-                                # The alert checking is done in get_exchange_rate
-                                logger.debug("Checked alert", pair=str(alert.currency_pair))
-
-                            except Exception as e:
-                                logger.error(
-                                    "Failed to check alert",
-                                    pair=str(alert.currency_pair),
-                                    error=str(e),
-                                )
+                            # Results are automatically awaited and exceptions handled by TaskGroup
+                            logger.debug(
+                                "Checked all alerts concurrently", count=len(enabled_alerts)
+                            )
+                        except* Exception as eg:
+                            # Handle ExceptionGroup from TaskGroup
+                            for exc in eg.exceptions:
+                                logger.error("Failed to check alert", error=str(exc))
 
                 # Wait for next interval
                 await asyncio.sleep(interval)
@@ -171,5 +183,6 @@ class WiseRateApp:
     async def stop(self) -> None:
         """Stop the application."""
         logger.info("Stopping WiseRate application")
-        # Cleanup tasks if needed
+        # Close HTTP client
+        await self.exchange_service.close()
         logger.info("WiseRate application stopped")
