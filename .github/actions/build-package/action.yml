@@ -1,0 +1,31 @@
+name: 'Build Package'
+description: 'Build the Python package distribution'
+
+inputs:
+  upload-artifacts:
+    description: 'Whether to upload build artifacts'
+    required: false
+    default: 'false'
+  artifact-name:
+    description: 'Name for the artifact'
+    required: false
+    default: 'dist-packages'
+  retention-days:
+    description: 'Number of days to retain artifacts'
+    required: false
+    default: '7'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Build package
+      shell: bash
+      run: just build
+
+    - name: Upload build artifacts
+      if: inputs.upload-artifacts == 'true'
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ inputs.artifact-name }}
+        path: dist/
+        retention-days: ${{ inputs.retention-days }}

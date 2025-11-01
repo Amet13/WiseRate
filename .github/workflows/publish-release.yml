@@ -1,9 +1,9 @@
-name: Release Pipeline
+name: Publish Release
 
 on:
   push:
     tags:
-      - "v*.*.*"  # Semantic versioning tags
+      - "v*.*.*" # Semantic versioning tags
   workflow_dispatch:
     inputs:
       tag:
@@ -18,43 +18,16 @@ jobs:
       contents: write
       packages: write
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v5
+      - name: Setup environment
+        uses: ./.github/actions/setup-environment
         with:
-          fetch-depth: 0  # Full history for version detection
-
-      - name: Set up Python 3.14
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.14"
-          cache: "uv"
-
-      - name: Install uv
-        uses: astral-sh/setup-uv@v5
-        with:
-          version: "latest"
-
-      - name: Cache uv dependencies
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/uv
-          key: ${{ runner.os }}-uv-${{ hashFiles('**/uv.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-uv-
-
-      - name: Install just
-        uses: extractions/setup-just@v1
-        with:
-          just-version: "latest"
-
-      - name: Install dependencies
-        run: just install-dev
+          fetch-depth: 0 # Full history for version detection
 
       - name: Run tests
-        run: just test
+        uses: ./.github/actions/run-tests
 
       - name: Build package
-        run: just build
+        uses: ./.github/actions/build-package
 
       - name: Get package version
         id: package_version
