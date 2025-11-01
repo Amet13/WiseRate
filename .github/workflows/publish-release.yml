@@ -75,7 +75,7 @@ jobs:
 
             **Using uv (recommended - fastest):**
             ```bash
-            uv pip install git+https://github.com/Amet13/WiseRate.git@${{ steps.package_version.outputs.tag }} --system
+            uv pip install --system git+https://github.com/Amet13/WiseRate.git@${{ steps.package_version.outputs.tag }}
             ```
 
             **Using pip:**
