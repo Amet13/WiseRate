@@ -140,7 +140,7 @@ version:
     echo "pyproject.toml: $(grep '^version = ' pyproject.toml | cut -d'"' -f2)"
     echo "src/wiserate/__init__.py: $(grep '__version__ = ' src/wiserate/__init__.py | cut -d'"' -f2)"
     echo "src/wiserate/cli.py: $(grep '@click.version_option' src/wiserate/cli.py | sed 's/.*version="\([^"]*\)".*/\1/')"
-    echo "README.md: $(grep 'uv add.*@v' README.md | sed 's/.*@v\([^"]*\)/\1/' | head -1)"
+    echo "README.md: $(grep 'uv add.*@' README.md | grep -oE '@[0-9]+\.[0-9]+\.[0-9]+' | head -1 | sed 's/@//')"
 
 # Prepare release with version bump
 release VERSION:
@@ -158,12 +158,33 @@ release VERSION:
     sed -i '' 's/@click\.version_option(version=".*", prog_name="WiseRate")/@click.version_option(version="{{VERSION}}", prog_name="WiseRate")/' src/wiserate/cli.py
 
     echo "4. Updating version in README.md..."
-    sed -i '' 's|uv add git+https://github.com/Amet13/WiseRate.git@v.*|uv add git+https://github.com/Amet13/WiseRate.git@v{{VERSION}}|' README.md
+    # Update all installation commands to use the new version (handles both with and without 'v' prefix)
+    sed -i '' 's|git+https://github.com/Amet13/WiseRate.git@v\?[0-9]\+\.[0-9]\+\.[0-9]\+|git+https://github.com/Amet13/WiseRate.git@{{VERSION}}|g' README.md
 
-    echo "5. Building package..."
+    echo "5. Verifying all versions are updated correctly..."
+    PYPROJECT_VERSION=$(grep '^version = ' pyproject.toml | cut -d'"' -f2)
+    INIT_VERSION=$(grep '__version__ = ' src/wiserate/__init__.py | cut -d'"' -f2)
+    CLI_VERSION=$(grep '@click.version_option' src/wiserate/cli.py | sed 's/.*version="\([^"]*\)".*/\1/')
+    README_VERSION=$(grep 'uv add.*@' README.md | grep -oE '@[0-9]+\.[0-9]+\.[0-9]+' | head -1 | sed 's/@//')
+
+    if [ "$PYPROJECT_VERSION" != "{{VERSION}}" ] || \
+       [ "$INIT_VERSION" != "{{VERSION}}" ] || \
+       [ "$CLI_VERSION" != "{{VERSION}}" ] || \
+       [ "$README_VERSION" != "{{VERSION}}" ]; then
+        echo "❌ Error: Version mismatch detected!"
+        echo "Expected: {{VERSION}}"
+        echo "pyproject.toml: $PYPROJECT_VERSION"
+        echo "src/wiserate/__init__.py: $INIT_VERSION"
+        echo "src/wiserate/cli.py: $CLI_VERSION"
+        echo "README.md: $README_VERSION"
+        exit 1
+    fi
+    echo "✅ All versions match: {{VERSION}}"
+
+    echo "6. Building package..."
     just build
 
-    echo "6. Running tests..."
+    echo "7. Running tests..."
     just test
 
     echo ""
@@ -171,7 +192,7 @@ release VERSION:
     echo "Next steps:"
     echo "  git add ."
     echo "  git commit -m 'chore: prepare release {{VERSION}}'"
-    echo "  git tag v{{VERSION}}"
+    echo "  git tag {{VERSION}}"
     echo "  git push origin main --tags"
 
 # Update dependencies

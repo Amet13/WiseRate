@@ -64,7 +64,7 @@ def setup_logging(level: str) -> None:
 
 
 @click.group()
-@click.version_option(version="2.4.0", prog_name="WiseRate")
+@click.version_option(version="2.5.0", prog_name="WiseRate")
 @click.option("--log-level", default="INFO", help="Log level")
 @click.pass_context
 def cli(ctx: Any, log_level: str) -> None:
@@ -86,7 +86,7 @@ def cli(ctx: Any, log_level: str) -> None:
 @click.option("--update", "-u", is_flag=True, help="Update currency rates cache")
 @click.pass_context
 @async_command
-async def rate(app, ctx, source: str, target: str, update: bool):
+async def rate(app: WiseRateApp, ctx: Any, source: str, target: str, update: bool) -> None:
     """Get exchange rate for a currency pair."""
     rate = await app.get_exchange_rate(source.upper(), target.upper(), update)
     console.print(f"[green]1 {rate.source} = {rate.rate} {rate.target}[/green]")
@@ -99,7 +99,9 @@ async def rate(app, ctx, source: str, target: str, update: bool):
 @click.option("--below", is_flag=True, help="Alert when rate goes below threshold")
 @click.pass_context
 @async_command
-async def alert(app, ctx, source: str, target: str, threshold: float, below: bool):
+async def alert(
+    app: WiseRateApp, ctx: Any, source: str, target: str, threshold: float, below: bool
+) -> None:
     """Set an exchange rate alert."""
     is_above = not below
     success = await app.set_alert(source.upper(), target.upper(), Decimal(str(threshold)), is_above)
@@ -119,7 +121,7 @@ async def alert(app, ctx, source: str, target: str, threshold: float, below: boo
 @click.argument("target", type=str)
 @click.pass_context
 @async_command
-async def remove_alert(app, ctx, source: str, target: str):
+async def remove_alert(app: WiseRateApp, ctx: Any, source: str, target: str) -> None:
     """Remove an exchange rate alert."""
     success = await app.remove_alert(source.upper(), target.upper())
 
@@ -132,7 +134,7 @@ async def remove_alert(app, ctx, source: str, target: str):
 @cli.command()
 @click.pass_context
 @async_command
-async def alerts(app, ctx):
+async def alerts(app: WiseRateApp, ctx: Any) -> None:
     """List all active alerts."""
     alerts_text = await app.list_alerts()
     console.print(alerts_text)
@@ -141,7 +143,7 @@ async def alerts(app, ctx):
 @cli.command()
 @click.pass_context
 @async_command
-async def update(app, ctx):
+async def update(app: WiseRateApp, ctx: Any) -> None:
     """Update all currency rates."""
     await app.update_all_rates()
     console.print("[green]All currency rates updated[/green]")
@@ -151,7 +153,7 @@ async def update(app, ctx):
 @click.option("--interval", default=600, help="Monitoring interval in seconds")
 @click.pass_context
 @async_command
-async def monitor(app, ctx, interval: int):
+async def monitor(app: WiseRateApp, ctx: Any, interval: int) -> None:
     """Run the monitoring loop to check alerts."""
     console.print(f"[green]Starting monitoring loop (interval: {interval}s)[/green]")
     console.print("[yellow]Press Ctrl+C to stop[/yellow]")
@@ -164,11 +166,11 @@ async def monitor(app, ctx, interval: int):
 
 @cli.command()
 @click.pass_context
-def test(ctx):
+def test(ctx: Any) -> None:
     """Test the application configuration and connections."""
     settings = ctx.obj["settings"]
 
-    async def run():
+    async def run() -> None:
         app = WiseRateApp(settings)
 
         try:
@@ -187,7 +189,7 @@ def test(ctx):
 
 @cli.command()
 @click.pass_context
-def config(ctx):
+def config(ctx: Any) -> None:
     """Show current configuration."""
     settings = ctx.obj["settings"]
 
@@ -217,7 +219,9 @@ def config(ctx):
 @click.option("--update", "-u", is_flag=True, help="Update currency rates cache")
 @click.pass_context
 @async_command
-async def history(app, ctx, source: str, target: str, format: str, update: bool):
+async def history(
+    app: WiseRateApp, ctx: Any, source: str, target: str, format: str, update: bool
+) -> None:
     """Get historical exchange rate data."""
     # For now, just get current rate (historical data would need API support)
     rate = await app.get_exchange_rate(source.upper(), target.upper(), update)
@@ -257,7 +261,7 @@ async def history(app, ctx, source: str, target: str, format: str, update: bool)
 )
 @click.pass_context
 @async_command
-async def export(app, ctx, format: str):
+async def export(app: WiseRateApp, ctx: Any, format: str) -> None:
     """Export all data (rates and alerts) in various formats."""
     # Get all alerts
     alerts_text = await app.list_alerts()
@@ -304,7 +308,7 @@ async def export(app, ctx, format: str):
 @cli.command()
 @click.argument("currency", type=str)
 @click.pass_context
-def validate_currency(ctx, currency: str):
+def validate_currency(ctx: Any, currency: str) -> None:
     """Validate a currency code."""
     from .utils import get_currency_name, validate_currency_code
 
@@ -325,7 +329,7 @@ def validate_currency(ctx, currency: str):
 
 @cli.command()
 @click.pass_context
-def currencies(ctx):
+def currencies(ctx: Any) -> None:
     """List all supported currency codes."""
     from .utils import EXTENDED_CURRENCIES, get_currency_name
 
@@ -342,11 +346,11 @@ def currencies(ctx):
 
 @cli.command()
 @click.pass_context
-def interactive(ctx):
+def interactive(ctx: Any) -> None:
     """Start interactive mode for WiseRate."""
     settings = ctx.obj["settings"]
 
-    async def run():
+    async def run() -> None:
         app = WiseRateApp(settings)
         await app.start()
 
@@ -382,7 +386,7 @@ def interactive(ctx):
     asyncio.run(run())
 
 
-async def execute_interactive_command(app: WiseRateApp, settings, command: str):
+async def execute_interactive_command(app: WiseRateApp, settings: Settings, command: str) -> None:
     """Execute a command in interactive mode with improved parsing and validation."""
     parts = command.split()
     cmd = parts[0].lower() if parts else ""
@@ -528,7 +532,7 @@ async def execute_interactive_command(app: WiseRateApp, settings, command: str):
         console.print(f"[red]Error executing command '{cmd}': {e}[/red]")
 
 
-def show_interactive_help():
+def show_interactive_help() -> None:
     """Show comprehensive help for interactive mode."""
     help_table = Table(title="WiseRate Interactive Mode - Available Commands")
     help_table.add_column("Command", style="cyan", no_wrap=True)
@@ -554,7 +558,7 @@ def show_interactive_help():
     console.print("  --below         Alert when rate goes below threshold")
 
 
-def main():
+def main() -> None:
     """Main entry point."""
     cli()
 
