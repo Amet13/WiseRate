@@ -165,7 +165,7 @@ release VERSION:
     PYPROJECT_VERSION=$(grep '^version = ' pyproject.toml | cut -d'"' -f2)
     INIT_VERSION=$(grep '__version__ = ' src/wiserate/__init__.py | cut -d'"' -f2)
     CLI_VERSION=$(grep '@click.version_option' src/wiserate/cli.py | sed 's/.*version="\([^"]*\)".*/\1/')
-    README_VERSION=$(grep 'uv add.*@' README.md | grep -oE '@[0-9]+\.[0-9]+\.[0-9]+' | head -1 | sed 's/@//')
+    README_VERSION=$(grep -E 'uv (pip install|add).*@' README.md | grep -oE '@[0-9]+\.[0-9]+\.[0-9]+' | head -1 | sed 's/@//')
 
     if [ "$PYPROJECT_VERSION" != "{{VERSION}}" ] || \
        [ "$INIT_VERSION" != "{{VERSION}}" ] || \

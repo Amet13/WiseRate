@@ -30,25 +30,14 @@ WiseRate is a CLI tool for monitoring currency exchange rates, with support for 
 **Recommended: Using uv (fastest)**
 
 ```bash
-# Install uv if you haven't already
-curl -LsSf https://astral.sh/uv/install.sh | sh
-
-# Install WiseRate
-uv add git+https://github.com/Amet13/WiseRate.git@2.5.1
+# Install globally (like pip install)
+uv pip install --system git+https://github.com/Amet13/WiseRate.git@2.5.2
 ```
 
-**Using pipx:**
+**Using pip:**
 
 ```bash
-pipx install git+https://github.com/Amet13/WiseRate.git@2.5.1
-```
-
-**Using pip with venv:**
-
-```bash
-python3 -m venv wiserate-env
-source wiserate-env/bin/activate  # On Windows: wiserate-env\Scripts\activate
-pip install git+https://github.com/Amet13/WiseRate.git@2.5.1
+pip install git+https://github.com/Amet13/WiseRate.git@2.5.2
 ```
 
 ### Basic Usage
