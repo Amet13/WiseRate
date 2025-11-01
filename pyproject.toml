@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "WiseRate"
-version = "2.5.0"
+version = "2.5.1"
 description = "Modern CLI tool for monitoring favorable currency exchange rates"
 readme = "README.md"
 license = {text = "MIT"}

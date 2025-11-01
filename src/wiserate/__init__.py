@@ -9,7 +9,7 @@ Example:
     >>> app = WiseRateApp(settings)
 """
 
-__version__ = "2.5.0"
+__version__ = "2.5.1"
 __author__ = "Amet13"
 
 from .config import Settings

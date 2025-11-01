@@ -64,7 +64,7 @@ def setup_logging(level: str) -> None:
 
 
 @click.group()
-@click.version_option(version="2.5.0", prog_name="WiseRate")
+@click.version_option(version="2.5.1", prog_name="WiseRate")
 @click.option("--log-level", default="INFO", help="Log level")
 @click.pass_context
 def cli(ctx: Any, log_level: str) -> None:
