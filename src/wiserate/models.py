@@ -8,7 +8,7 @@ This module defines the core data structures used throughout WiseRate:
 
 from datetime import UTC, datetime
 from decimal import Decimal
-from typing import Optional
+from typing import Any
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -56,7 +56,7 @@ class CurrencyPair(BaseModel):
 
     @field_validator("target")
     @classmethod
-    def validate_different_currencies(cls, v: str, info) -> str:
+    def validate_different_currencies(cls, v: str, info: Any) -> str:
         """Validate that source and target currencies are different.
 
         Args:
@@ -106,8 +106,8 @@ class ExchangeRate(BaseModel):
     target: str = Field(..., min_length=3, max_length=3)
     rate: Decimal = Field(..., ge=0, description="Exchange rate")
     timestamp: datetime = Field(default_factory=lambda: datetime.now(UTC))
-    source_name: Optional[str] = None
-    target_name: Optional[str] = None
+    source_name: str | None = None
+    target_name: str | None = None
 
     @field_validator("rate")
     @classmethod
@@ -171,7 +171,7 @@ class Alert(BaseModel):
     is_above: bool = Field(default=True, description="Alert when rate goes above threshold")
     enabled: bool = Field(default=True)
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
-    last_triggered: Optional[datetime] = None
+    last_triggered: datetime | None = None
 
     def should_trigger(self, current_rate: Decimal) -> bool:
         """Check if the alert should be triggered based on current rate.

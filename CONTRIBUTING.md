@@ -39,21 +39,20 @@ By participating in this project, you agree to maintain a respectful and inclusi
 
 ## Development Setup
 
-1. **Install Python 3.13** (required)
+1. **Install Python 3.14** (required)
 
 2. **Install development dependencies**:
 
    ```bash
-   make install-dev
+   just install-dev
    ```
 
    This will:
 
-   - Create a virtual environment (if not exists)
-   - Install all required packages
+   - Install all required packages using `uv`
    - Set up pre-commit hooks automatically
 
-   **Note:** All `make` commands automatically use the venv when available, so you don't need to activate it manually!
+   **Note:** This project uses `just` (modern command runner) instead of `make`. All `just` commands automatically use the project's virtual environment.
 
 ## Making Changes
 
@@ -70,13 +69,13 @@ By participating in this project, you agree to maintain a respectful and inclusi
 4. **Run the test suite**:
 
    ```bash
-   make test
+   just test
    ```
 
 5. **Run linting and formatting**:
    ```bash
-   make format
-   make lint
+   just fmt
+   just lint
    ```
 
 ## Testing
@@ -87,16 +86,16 @@ We use pytest for testing. All new features and bug fixes should include tests.
 
 ```bash
 # Run all tests
-make test
+just test
 
 # Run tests with verbose output
-make test-verbose
+just test-verbose
 
 # Run specific test file
-make test-file FILE=tests/test_config.py
+just test-file tests/test_config.py
 
 # Run tests with coverage
-make test-coverage
+just test-coverage
 ```
 
 ### Writing Tests
@@ -130,7 +129,7 @@ We follow PEP 8 and use the following tools:
 
 - **Black**: Code formatting (line length: 100)
 - **isort**: Import sorting
-- **flake8**: Linting
+- **Ruff**: Fast linting and code quality checks (written in Rust)
 - **mypy**: Type checking
 
 ### Code Style Guidelines
@@ -200,7 +199,7 @@ def get_exchange_rate(source: str, target: str) -> ExchangeRate:
 Before submitting a pull request, ensure:
 
 - [ ] Code follows the project's style guidelines
-- [ ] All tests pass (`make test`)
+- [ ] All tests pass (`just test`)
 - [ ] New tests added for new functionality
 - [ ] Documentation updated if needed
 - [ ] Pre-commit hooks pass

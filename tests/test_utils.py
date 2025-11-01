@@ -131,7 +131,7 @@ class TestFileOperations:
         save_json_file(test_file, test_data)
 
         assert test_file.exists()
-        with open(test_file, "r") as f:
+        with open(test_file) as f:
             loaded_data = json.load(f)
         assert loaded_data == test_data
 

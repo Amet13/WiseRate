@@ -2,10 +2,11 @@
 
 import asyncio
 import sys
+from collections.abc import Callable, Coroutine
 from datetime import datetime
 from decimal import Decimal
 from functools import wraps
-from typing import Any, Callable, Coroutine
+from typing import Any
 
 import click
 import structlog
@@ -22,7 +23,7 @@ def async_command(func: Callable[..., Coroutine[Any, Any, None]]) -> Callable[..
     """Decorator to handle async command execution with common error handling."""
 
     @wraps(func)
-    def wrapper(ctx, *args: Any, **kwargs: Any) -> None:
+    def wrapper(ctx: Any, *args: Any, **kwargs: Any) -> None:
         async def run() -> None:
             settings = ctx.obj["settings"]
             app = WiseRateApp(settings)
@@ -63,10 +64,10 @@ def setup_logging(level: str) -> None:
 
 
 @click.group()
-@click.version_option(version="2.3.1", prog_name="WiseRate")
+@click.version_option(version="2.4.0", prog_name="WiseRate")
 @click.option("--log-level", default="INFO", help="Log level")
 @click.pass_context
-def cli(ctx, log_level: str):
+def cli(ctx: Any, log_level: str) -> None:
     """WiseRate - Modern CLI tool for monitoring currency exchange rates."""
     setup_logging(log_level)
     ctx.ensure_object(dict)
@@ -106,8 +107,7 @@ async def alert(app, ctx, source: str, target: str, threshold: float, below: boo
     if success:
         direction = "below" if below else "above"
         console.print(
-            f"[green]Alert set: 1 {source.upper()} {direction} "
-            f"{threshold} {target.upper()}[/green]"
+            f"[green]Alert set: 1 {source.upper()} {direction} {threshold} {target.upper()}[/green]"
         )
     else:
         console.print("[red]Failed to set alert[/red]")

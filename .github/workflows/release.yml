@@ -2,42 +2,56 @@ name: Release Pipeline
 
 on:
   push:
-    tags: ["*"]
+    tags:
+      - "v*.*.*"  # Semantic versioning tags
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag (e.g., v2.4.0)"
+        required: true
 
 jobs:
   release:
+    name: Build and Release
     runs-on: ubuntu-latest
     permissions:
       contents: write
       packages: write
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0  # Full history for version detection
 
       - name: Set up Python 3.14
         uses: actions/setup-python@v5
         with:
           python-version: "3.14"
+          cache: "uv"
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v2
+        uses: astral-sh/setup-uv@v5
         with:
           version: "latest"
 
-      - name: Cache uv
+      - name: Cache uv dependencies
         uses: actions/cache@v4
         with:
           path: ~/.cache/uv
-          key: ${{ runner.os }}-uv-3.14-${{ hashFiles('**/pyproject.toml') }}
+          key: ${{ runner.os }}-uv-${{ hashFiles('**/uv.lock') }}
           restore-keys: |
-            ${{ runner.os }}-uv-3.14-
+            ${{ runner.os }}-uv-
 
       - name: Install just
-        run: |
-          curl --proto '=https' --tlsv1.2 -sSf https://just.systems/install.sh | bash -s -- --to /usr/local/bin
+        uses: extractions/setup-just@v1
+        with:
+          just-version: "latest"
 
       - name: Install dependencies
         run: just install-dev
+
+      - name: Run tests
+        run: just test
 
       - name: Build package
         run: just build
@@ -45,25 +59,15 @@ jobs:
       - name: Get package version
         id: package_version
         run: |
-          # Extract version from the built wheel file
-          WHEEL_FILE=$(ls dist/wiserate-*-py3-none-any.whl | head -1)
-          if [ -z "$WHEEL_FILE" ]; then
-            echo "Error: No wheel file found in dist/"
-            exit 1
-          fi
-          echo "Debug: Found wheel file: $WHEEL_FILE"
-
-          # Extract just the version number using basename and sed
-          FILENAME=$(basename "$WHEEL_FILE")
-          echo "Debug: Filename: $FILENAME"
-
-          VERSION=$(echo "$FILENAME" | sed 's/wiserate-\([0-9]\+\.[0-9]\+\.[0-9]\+\)-.*\.whl/\1/')
-          if [ -z "$VERSION" ]; then
-            echo "Error: Could not extract version from wheel file: $FILENAME"
-            exit 1
+          # Get version from git tag or workflow input
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            TAG="${{ github.event.inputs.tag }}"
+          else
+            TAG="${GITHUB_REF#refs/tags/}"
           fi
 
-          echo "Debug: Extracted version: $VERSION"
+          # Remove 'v' prefix if present
+          VERSION="${TAG#v}"
 
           # Validate version format (should be x.y.z)
           if ! echo "$VERSION" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+$'; then
@@ -72,46 +76,58 @@ jobs:
           fi
 
           echo "version=$VERSION" >> $GITHUB_OUTPUT
-          echo "Found version: $VERSION"
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+          echo "Found version: $VERSION from tag: $TAG"
 
       - name: Create Release and Upload Assets
         uses: softprops/action-gh-release@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name: ${{ github.ref_name }}
-          name: ${{ steps.package_version.outputs.version }}
+          tag_name: ${{ steps.package_version.outputs.tag }}
+          name: Release ${{ steps.package_version.outputs.version }}
           body: |
-            ## Installation
+            ## 🎉 Release ${{ steps.package_version.outputs.version }}
+
+            ### Installation
 
             **Using uv (recommended - fastest):**
             ```bash
-            uv add git+https://github.com/Amet13/WiseRate.git@${{ steps.package_version.outputs.version }}
+            uv add git+https://github.com/Amet13/WiseRate.git@${{ steps.package_version.outputs.tag }}
             ```
 
             **Using pipx:**
             ```bash
-            pipx install git+https://github.com/Amet13/WiseRate.git@${{ steps.package_version.outputs.version }}
+            pipx install git+https://github.com/Amet13/WiseRate.git@${{ steps.package_version.outputs.tag }}
             ```
 
             **Using pip with venv:**
             ```bash
             python3 -m venv wiserate-env
             source wiserate-env/bin/activate
-            pip install git+https://github.com/Amet13/WiseRate.git@${{ steps.package_version.outputs.version }}
+            pip install git+https://github.com/Amet13/WiseRate.git@${{ steps.package_version.outputs.tag }}
             ```
 
-            ## Usage
+            ### Quick Start
 
             ```bash
             wiserate --help
             ```
 
-            ## Documentation
+            ### Requirements
 
-            See [README.md](README.md) for full documentation.
+            - Python 3.14 or higher
+            - uv (recommended) or pip
+
+            ### Documentation
+
+            See [README.md](README.md) for full documentation and examples.
+
+            ### Changelog
+
+            See [CHANGELOG.md](CHANGELOG.md) for detailed changes in this release.
           files: |
             dist/wiserate-${{ steps.package_version.outputs.version }}-*.whl
             dist/wiserate-${{ steps.package_version.outputs.version }}.tar.gz
           draft: false
-          prerelease: false
+          prerelease: ${{ contains(steps.package_version.outputs.version, 'alpha') || contains(steps.package_version.outputs.version, 'beta') || contains(steps.package_version.outputs.version, 'rc') }}

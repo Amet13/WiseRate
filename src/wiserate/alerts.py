@@ -1,15 +1,15 @@
 """Alert service for managing exchange rate alerts."""
 
-import json
+import asyncio
 from datetime import datetime
 from decimal import Decimal
-from typing import Dict, List, Optional
 
 import structlog
 from pydantic import ValidationError
 
 from .config import Settings
 from .models import Alert, CurrencyPair, ExchangeRate
+from .utils import load_json_file_async, save_json_file_async
 
 logger = structlog.get_logger(__name__)
 
@@ -19,8 +19,18 @@ class AlertService:
 
     def __init__(self, settings: Settings) -> None:
         self.settings = settings
-        self._alerts: Dict[str, Alert] = {}
+        self._alerts: dict[str, Alert] = {}
         self._load_alerts()
+
+    def _run_async_save(self) -> None:
+        """Run async save operation, handling both sync and async contexts."""
+        try:
+            loop = asyncio.get_running_loop()
+            # We're in an async context, schedule the task
+            loop.create_task(self._save_alerts_async())
+        except RuntimeError:
+            # No event loop running, use asyncio.run
+            asyncio.run(self._save_alerts_async())
 
     def add_alert(
         self, currency_pair: CurrencyPair, threshold: Decimal, is_above: bool = True
@@ -37,7 +47,7 @@ class AlertService:
             threshold=str(threshold),
             is_above=is_above,
         )
-        self._save_alerts()
+        self._run_async_save()
 
         return alert
 
@@ -48,21 +58,21 @@ class AlertService:
         if alert_key in self._alerts:
             del self._alerts[alert_key]
             logger.info("Alert removed", pair=str(currency_pair))
-            self._save_alerts()
+            self._run_async_save()
             return True
 
         return False
 
-    def get_alert(self, currency_pair: CurrencyPair) -> Optional[Alert]:
+    def get_alert(self, currency_pair: CurrencyPair) -> Alert | None:
         """Get an alert for a specific currency pair."""
         alert_key = self._get_alert_key(currency_pair)
         return self._alerts.get(alert_key)
 
-    def get_all_alerts(self) -> List[Alert]:
+    def get_all_alerts(self) -> list[Alert]:
         """Get all active alerts."""
         return list(self._alerts.values())
 
-    def check_alerts(self, exchange_rate: ExchangeRate) -> List[Alert]:
+    def check_alerts(self, exchange_rate: ExchangeRate) -> list[Alert]:
         """Check if any alerts should be triggered for the given exchange rate."""
         triggered_alerts = []
         currency_pair = CurrencyPair(source=exchange_rate.source, target=exchange_rate.target)
@@ -80,9 +90,7 @@ class AlertService:
                     rate=str(exchange_rate.rate),
                 )
 
-        if triggered_alerts:
-            self._save_alerts()
-
+        # Note: Save is handled by caller in async context
         return triggered_alerts
 
     def _get_alert_key(self, currency_pair: CurrencyPair) -> str:
@@ -90,73 +98,82 @@ class AlertService:
         return f"{currency_pair.source}_{currency_pair.target}"
 
     def _load_alerts(self) -> None:
-        """Load alerts from persistent storage."""
+        """Load alerts from persistent storage (sync wrapper for async implementation)."""
         try:
-            if self.settings.alerts_file.exists():
-                with open(self.settings.alerts_file, "r") as f:
-                    data = json.load(f)
+            # Use async implementation if in async context, otherwise run sync
+            try:
+                loop = asyncio.get_running_loop()
+                # We're in an async context, schedule the task
+                loop.create_task(self._load_alerts_async())
+            except RuntimeError:
+                # No event loop running, use asyncio.run
+                asyncio.run(self._load_alerts_async())
+        except Exception as e:
+            logger.error("Failed to load alerts", error=str(e))
 
-                for alert_data in data.values():
-                    try:
-                        currency_pair = CurrencyPair(
-                            source=alert_data["currency_pair"]["source"],
-                            target=alert_data["currency_pair"]["target"],
+    async def _load_alerts_async(self) -> None:
+        """Load alerts from persistent storage asynchronously."""
+        try:
+            data = await load_json_file_async(self.settings.alerts_file, default={})
+
+            for alert_data in data.values():
+                try:
+                    currency_pair = CurrencyPair(
+                        source=alert_data["currency_pair"]["source"],
+                        target=alert_data["currency_pair"]["target"],
+                    )
+
+                    # Handle created_at with null checking
+                    created_at_value = alert_data.get("created_at")
+                    if created_at_value is None:
+                        logger.warning(
+                            "Alert missing created_at timestamp, skipping",
+                            alert_data=alert_data,
                         )
+                        continue
 
-                        # Handle created_at with null checking
-                        created_at_value = alert_data.get("created_at")
-                        if created_at_value is None:
-                            logger.warning(
-                                "Alert missing created_at timestamp, skipping",
-                                alert_data=alert_data,
-                            )
-                            continue
+                    try:
+                        created_at_dt = datetime.fromisoformat(created_at_value)
+                    except (ValueError, TypeError) as e:
+                        logger.warning(
+                            "Invalid created_at format, skipping",
+                            value=created_at_value,
+                            error=str(e),
+                        )
+                        continue
 
+                    alert = Alert(
+                        currency_pair=currency_pair,
+                        threshold=Decimal(alert_data["threshold"]),
+                        is_above=alert_data["is_above"],
+                        enabled=alert_data.get("enabled", True),
+                        created_at=created_at_dt,
+                    )
+
+                    # Handle last_triggered with null checking
+                    if "last_triggered" in alert_data and alert_data["last_triggered"] is not None:
                         try:
-                            created_at_dt = datetime.fromisoformat(created_at_value)
+                            alert.last_triggered = datetime.fromisoformat(
+                                alert_data["last_triggered"]
+                            )
                         except (ValueError, TypeError) as e:
                             logger.warning(
-                                "Invalid created_at format, skipping",
-                                value=created_at_value,
+                                "Invalid last_triggered format, ignoring",
+                                value=alert_data["last_triggered"],
                                 error=str(e),
                             )
-                            continue
 
-                        alert = Alert(
-                            currency_pair=currency_pair,
-                            threshold=Decimal(alert_data["threshold"]),
-                            is_above=alert_data["is_above"],
-                            enabled=alert_data.get("enabled", True),
-                            created_at=created_at_dt,
-                        )
+                    alert_key = self._get_alert_key(currency_pair)
+                    self._alerts[alert_key] = alert
 
-                        # Handle last_triggered with null checking
-                        if (
-                            "last_triggered" in alert_data
-                            and alert_data["last_triggered"] is not None
-                        ):
-                            try:
-                                alert.last_triggered = datetime.fromisoformat(
-                                    alert_data["last_triggered"]
-                                )
-                            except (ValueError, TypeError) as e:
-                                logger.warning(
-                                    "Invalid last_triggered format, ignoring",
-                                    value=alert_data["last_triggered"],
-                                    error=str(e),
-                                )
-
-                        alert_key = self._get_alert_key(currency_pair)
-                        self._alerts[alert_key] = alert
-
-                    except (ValidationError, KeyError, ValueError) as e:
-                        logger.warning("Invalid alert data", data=alert_data, error=str(e))
+                except (ValidationError, KeyError, ValueError) as e:
+                    logger.warning("Invalid alert data", data=alert_data, error=str(e))
 
         except Exception as e:
             logger.error("Failed to load alerts", error=str(e))
 
-    def _save_alerts(self) -> None:
-        """Save alerts to persistent storage."""
+    async def _save_alerts_async(self) -> None:
+        """Save alerts to persistent storage asynchronously."""
         try:
             data = {}
             for alert_key, alert in self._alerts.items():
@@ -174,8 +191,7 @@ class AlertService:
                     ),
                 }
 
-            with open(self.settings.alerts_file, "w") as f:
-                json.dump(data, f, indent=2)
+            await save_json_file_async(self.settings.alerts_file, data)
 
         except Exception as e:
             logger.error("Failed to save alerts", error=str(e))
@@ -183,7 +199,7 @@ class AlertService:
     def clear_all_alerts(self) -> None:
         """Clear all alerts."""
         self._alerts.clear()
-        self._save_alerts()
+        self._run_async_save()
         logger.info("All alerts cleared")
 
     def enable_alert(self, currency_pair: CurrencyPair) -> bool:
@@ -191,7 +207,7 @@ class AlertService:
         alert = self.get_alert(currency_pair)
         if alert:
             alert.enabled = True
-            self._save_alerts()
+            self._run_async_save()
             logger.info("Alert enabled", pair=str(currency_pair))
             return True
         return False
@@ -201,7 +217,7 @@ class AlertService:
         alert = self.get_alert(currency_pair)
         if alert:
             alert.enabled = False
-            self._save_alerts()
+            self._run_async_save()
             logger.info("Alert disabled", pair=str(currency_pair))
             return True
         return False

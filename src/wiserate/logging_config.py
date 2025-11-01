@@ -11,7 +11,6 @@ import logging
 import sys
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
-from typing import Optional
 
 import structlog
 from structlog.typing import FilteringBoundLogger
@@ -19,7 +18,7 @@ from structlog.typing import FilteringBoundLogger
 
 def configure_logging(
     log_level: str = "INFO",
-    log_file: Optional[Path] = None,
+    log_file: Path | None = None,
     enable_json: bool = False,
     max_file_size: int = 10 * 1024 * 1024,  # 10 MB
     backup_count: int = 5,
