@@ -17,26 +17,6 @@
 
 WiseRate is a CLI tool for monitoring currency exchange rates, with support for alerts, caching, and an interactive mode.
 
-## ✨ Features
-
-- **Modern Architecture**: Built with Python 3.14, async/await, and Pydantic v2 models
-- **Fast Package Management**: Powered by uv for rapid dependency resolution
-- **API Integration**: Free exchange rate API with built-in caching and rate limiting
-- **Smart Caching**: Configurable cache TTL with fallback to stale data and atomic writes
-- **Alert System**: Set price alerts with above/below thresholds
-- **Rich CLI**: Beautiful command-line interface with Click and Rich
-- **Interactive Mode**: Full command-line interface for easy use
-- **Multiple Output Formats**: JSON, CSV, and rich table output
-- **Currency Validation**: Built-in ISO 4217 currency code validation
-- **Advanced Logging**: Structured logging with file rotation and multiple formats
-- **Environment Variables**: Full configuration via environment variables
-- **Rate Limiting**: Built-in API rate limiting and protection
-- **Configuration Management**: Built-in defaults with flexible overrides
-- **Comprehensive Testing**: Full test suite with pytest and 64%+ coverage
-- **Type Safety**: Strict mypy and pyright type checking for reliability
-- **Security**: Input validation, secure file operations, and security policy
-- **Modern CI/CD**: GitHub Actions with automated testing and linting
-
 ## 🚀 Quick Start
 
 ### Prerequisites
@@ -265,38 +245,6 @@ just run *ARGS     # Run the CLI application
 just help-cli      # Show CLI help
 just version       # Show version information
 just info          # Show environment information
-```
-
-## 🔒 Security Features
-
-- Environment variable configuration (no hardcoded secrets)
-- Rate limiting to prevent API abuse
-- Input validation with Pydantic v2 models
-- Secure error handling (no sensitive data exposure)
-- Custom exception handling for better security
-- Input sanitization and validation
-
-## 📈 Monitoring & Alerts
-
-### Alert Types
-
-- **Above Threshold**: Notify when rate goes above specified value
-- **Below Threshold**: Notify when rate goes below specified value
-
-### Monitoring Modes
-
-- **Manual**: Check rates on-demand
-- **Scheduled**: Regular updates via cron/systemd
-- **Continuous**: Background monitoring loop
-
-### Example Cron Jobs
-
-```bash
-# Check rates every hour
-0 * * * * cd /path/to/wiserate && wiserate update
-
-# Monitor alerts every 15 minutes
-*/15 * * * * cd /path/to/wiserate && wiserate monitor --interval 900
 ```
 
 ## 📝 License
